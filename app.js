@@ -200,7 +200,7 @@ function submitSelection() {
   trackEvent('quiz_submit', { selected_traits: selected.join(',') });
 
   if (calculationTimer) window.clearTimeout(calculationTimer);
-  calculationTimer = window.setTimeout(calculate, 4200);
+  calculationTimer = window.setTimeout(calculate, 5000);
 }
 
 function getCalculatedResult() {
@@ -448,42 +448,30 @@ async function downloadResultCard() {
   const context = canvas.getContext('2d');
   const theme = resultThemes[current.key] || ['✨', '#4f8edc', '#f2f8ff', '#b9d4f3'];
 
-  context.fillStyle = '#eef8ff';
+  // 與分析結果頁一致的乾淨白底卡片
+  context.fillStyle = '#f3f9fd';
   context.fillRect(0, 0, canvas.width, canvas.height);
-
-  context.strokeStyle = '#d7ebf7';
-  context.lineWidth = 2;
-  for (let x = 0; x <= canvas.width; x += 48) {
-    context.beginPath();
-    context.moveTo(x, 0);
-    context.lineTo(x, canvas.height);
-    context.stroke();
-  }
-  for (let y = 0; y <= canvas.height; y += 48) {
-    context.beginPath();
-    context.moveTo(0, y);
-    context.lineTo(canvas.width, y);
-    context.stroke();
-  }
 
   context.fillStyle = '#ffffff';
   context.strokeStyle = theme[3];
   context.lineWidth = 5;
-  roundRect(context, 55, 45, 970, 1260, 42);
+  roundRect(context, 54, 40, 972, 1270, 42);
   context.fill();
   context.stroke();
 
-  context.fillStyle = '#18a7c0';
-  context.font = '700 34px system-ui, sans-serif';
-  context.fillText('TUN 大學網｜大一命定人格', 105, 112);
+  // 人格名稱
+  context.textAlign = 'center';
+  context.fillStyle = '#0f3f83';
+  context.strokeStyle = '#fff7e8';
+  context.lineWidth = 12;
+  context.font = '900 76px system-ui, sans-serif';
+  context.strokeText(current.name, 540, 135);
+  context.fillText(current.name, 540, 135);
 
-  context.fillStyle = theme[1];
-  context.font = '900 72px system-ui, sans-serif';
-  context.fillText(current.name, 105, 205);
-
+  // 結果人物圖
   try {
     const image = await loadImage(resultImages[current.key] || IMG);
-    const box = { x: 165, y: 245, width: 750, height: 430 };
+    const box = { x: 170, y: 165, width: 740, height: 360 };
     const ratio = Math.min(box.width / image.width, box.height / image.height);
     const width = image.width * ratio;
     const height = image.height * ratio;
@@ -496,54 +484,92 @@ async function downloadResultCard() {
     );
   } catch (_) {
     context.fillStyle = theme[2];
-    roundRect(context, 165, 245, 750, 430, 30);
+    roundRect(context, 170, 165, 740, 360, 28);
     context.fill();
   }
 
-  context.fillStyle = theme[2];
-  roundRect(context, 105, 700, 870, 125, 28);
+  context.textAlign = 'left';
+
+  // 代表標籤區塊
+  context.fillStyle = '#ffffff';
+  context.strokeStyle = theme[3];
+  context.lineWidth = 3;
+  roundRect(context, 95, 545, 890, 155, 24);
   context.fill();
+  context.stroke();
 
   context.fillStyle = theme[1];
-  context.font = '700 31px system-ui, sans-serif';
+  context.font = '900 31px system-ui, sans-serif';
+  context.fillText('代表標籤', 125, 592);
+
+  context.font = '700 27px system-ui, sans-serif';
   current.hashtags.forEach((tag, index) => {
     const column = index % 2;
     const row = Math.floor(index / 2);
-    context.fillText(tag, 145 + column * 410, 750 + row * 47);
+    context.fillText(tag, 125 + column * 420, 640 + row * 42);
   });
 
-  context.fillStyle = '#21384c';
-  context.font = '700 30px system-ui, sans-serif';
-  context.fillText('人格說明', 105, 895);
-  context.font = '400 29px system-ui, sans-serif';
-  wrapCanvasText(context, current.desc, 105, 945, 870, 43, 3);
+  // 人格說明區塊
+  context.fillStyle = '#ffffff';
+  context.strokeStyle = theme[3];
+  roundRect(context, 95, 720, 890, 185, 24);
+  context.fill();
+  context.stroke();
 
-  context.font = '700 30px system-ui, sans-serif';
-  context.fillText('能力值分析', 105, 1095);
+  context.fillStyle = theme[1];
+  context.font = '900 31px system-ui, sans-serif';
+  context.fillText('人格說明', 125, 768);
+
+  context.fillStyle = '#21384c';
+  context.font = '400 27px system-ui, sans-serif';
+  wrapCanvasText(context, current.desc, 125, 815, 830, 39, 3);
+
+  // 開學小提醒區塊
+  context.fillStyle = '#ffffff';
+  context.strokeStyle = theme[3];
+  roundRect(context, 95, 925, 890, 130, 24);
+  context.fill();
+  context.stroke();
+
+  context.fillStyle = theme[1];
+  context.font = '900 31px system-ui, sans-serif';
+  context.fillText('開學小提醒', 125, 973);
+
+  context.fillStyle = '#21384c';
+  context.font = '400 26px system-ui, sans-serif';
+  wrapCanvasText(context, current.skill, 125, 1018, 830, 36, 2);
+
+  // 能力值分析區塊
+  context.fillStyle = '#ffffff';
+  context.strokeStyle = theme[3];
+  roundRect(context, 95, 1075, 890, 195, 24);
+  context.fill();
+  context.stroke();
+
+  context.fillStyle = theme[1];
+  context.font = '900 31px system-ui, sans-serif';
+  context.fillText('能力值分析', 125, 1120);
 
   dims.forEach((dimension, index) => {
-    const y = 1140 + index * 34;
+    const y = 1158 + index * 25;
     const value = currentStats[dimension] ?? 50;
 
     context.fillStyle = '#4a6478';
-    context.font = '600 21px system-ui, sans-serif';
-    context.fillText(labels[dimension], 105, y);
+    context.font = '700 18px system-ui, sans-serif';
+    context.fillText(labels[dimension], 125, y);
 
     context.fillStyle = '#e8f0f5';
-    roundRect(context, 245, y - 18, 610, 20, 10);
+    roundRect(context, 270, y - 14, 570, 16, 8);
     context.fill();
 
     context.fillStyle = theme[1];
-    roundRect(context, 245, y - 18, 610 * value / 100, 20, 10);
+    roundRect(context, 270, y - 14, 570 * value / 100, 16, 8);
     context.fill();
 
     context.fillStyle = theme[1];
-    context.fillText(`${value}%`, 880, y);
+    context.font = '700 18px system-ui, sans-serif';
+    context.fillText(`${value}%`, 865, y);
   });
-
-  context.fillStyle = '#6b8193';
-  context.font = '500 23px system-ui, sans-serif';
-  context.fillText('tun-freshman-personality.pages.dev', 105, 1270);
 
   const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
   if (!blob) {
