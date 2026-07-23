@@ -1,5 +1,8 @@
 if ("serviceWorker" in navigator && location.protocol === "https:") {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  window.addEventListener("load", async () => {
+    try {
+      const registration = await navigator.serviceWorker.register("./sw.js?v=6.0.2", { updateViaCache: "none" });
+      await registration.update();
+    } catch (_) {}
   });
 }

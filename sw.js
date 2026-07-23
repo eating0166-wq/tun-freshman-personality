@@ -1,4 +1,4 @@
-const CACHE_NAME = "tun-personality-v6-0-20260723";
+const CACHE_NAME = "tun-personality-v6-0-2-20260723";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -68,29 +68,33 @@ self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
 
   const requestUrl = new URL(event.request.url);
+  const isSameOrigin = requestUrl.origin === self.location.origin;
+  const isCodeAsset = /\.(?:js|css)$/.test(requestUrl.pathname);
 
-  if (event.request.mode === "navigate") {
+  // HTML、JS、CSS 一律優先抓最新版，離線時才使用快取。
+  if (event.request.mode === "navigate" || (isSameOrigin && isCodeAsset)) {
     event.respondWith(
-      fetch(event.request)
+      fetch(event.request, { cache: "no-store" })
         .then(response => {
           const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put("./index.html", copy));
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
           return response;
         })
-        .catch(() => caches.match("./index.html"))
+        .catch(() => caches.match(event.request).then(cached => cached || caches.match("./index.html")))
     );
     return;
   }
 
-  if (requestUrl.origin === self.location.origin) {
+  // 圖片等靜態資源使用快取優先。
+  if (isSameOrigin) {
     event.respondWith(
       caches.match(event.request).then(cached => {
-        const network = fetch(event.request).then(response => {
+        if (cached) return cached;
+        return fetch(event.request).then(response => {
           const copy = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
           return response;
         });
-        return cached || network;
       })
     );
   }
