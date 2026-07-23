@@ -13,3 +13,7 @@
 - Restored the centered sticker-style personality title treatment.
 - Removed the URL/footer from the downloaded result card.
 - Updated Service Worker cache to v6.0.
+
+## v6.0.1 Deploy Fix
+- 新增 `wrangler.toml`，明確指定 Cloudflare Pages 靜態輸出目錄為專案根目錄 (`.`)。
+- 修正 GitHub 自動部署出現 `Output directory ' ' not found` 的問題。
