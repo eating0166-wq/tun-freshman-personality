@@ -1,36 +1,36 @@
-const IMG=`./images/asset-01.webp`;
+const IMG=`./asset-01.webp`;
 const dims=['study','social','time','survival','action'];
 const labels={study:'讀書值',social:'社交值',time:'時間管理',survival:'續命值',action:'行動力'};
 const resultImages={
-  course:'./images/result-course.webp',
-  campus:'./images/result-campus.webp',
-  friends:'./images/result-friends.webp',
-  dorm:'./images/result-dorm.webp',
-  food:'./images/result-food.webp',
-  report:'./images/result-report.webp',
-  sleep:'./images/result-sleep.webp',
-  saving:'./images/result-saving.webp',
-  parttime:'./images/result-parttime.webp',
-  club:'./images/result-club.webp',
-  love:'./images/result-love.webp',
-  growth:'./images/result-growth.webp'
+  course:'./result-course.webp',
+  campus:'./result-campus.webp',
+  friends:'./result-friends.webp',
+  dorm:'./result-dorm.webp',
+  food:'./result-food.webp',
+  report:'./result-report.webp',
+  sleep:'./result-sleep.webp',
+  saving:'./result-saving.webp',
+  parttime:'./result-parttime.webp',
+  club:'./result-club.webp',
+  love:'./result-love.webp',
+  growth:'./result-growth.webp'
 };
 
 const resultThemes={course:['👑','#397bd5','#eef6ff','#a9c9ee'],campus:['📍','#4d966f','#f1faf4','#afd8bd'],friends:['🥳','#e45862','#fff3f3','#f3b6ba'],dorm:['🏠','#477fc2','#f2f7ff','#afc9ea'],food:['🍴','#df7b20','#fff7ed','#f3c79f'],report:['📄','#7655aa','#f8f3ff','#cdbbe5'],sleep:['💤','#397cc4','#f2f8ff','#b7d3ef'],saving:['💰','#c28a17','#fff9e9','#ead495'],parttime:['💼','#247c8c','#effafb','#9fcfd4'],club:['🎉','#7358a8','#f7f3ff','#c9bbe2'],love:['🫥','#607d8b','#f3f7f8','#bdcdd3'],growth:['🌱','#54883f','#f3faef','#bed5ae']};
 
 const traits=[
-{id:1,text:'選課比搶演唱會門票還難',img:'./images/asset-02.webp',scores:{study:2,action:5,survival:2}},
-{id:2,text:'今天也在學校迷路了',img:'./images/asset-03.webp',scores:{action:4,survival:2,social:1}},
-{id:3,text:'努力交到第一群朋友',img:'./images/asset-04.webp',scores:{social:5,action:3}},
-{id:4,text:'第一次離家住宿',img:'./images/asset-05.webp',scores:{survival:4,action:3,social:2}},
-{id:5,text:'我知道學餐哪間比較好吃',img:'./images/asset-06.webp',scores:{survival:4,social:2}},
-{id:6,text:'報告做不完',img:'./images/asset-07.webp',scores:{study:5,action:4,survival:2}},
-{id:7,text:'每次都想翹早八',img:'./images/asset-08.webp',scores:{survival:5,study:1,action:-1}},
-{id:8,text:'月底開始吃土',img:'./images/asset-09.webp',scores:{survival:5,time:2,action:2}},
-{id:9,text:'打工賺生活費',img:'./images/asset-10.webp',scores:{time:5,action:4,survival:3}},
-{id:10,text:'社團活動跑不停',img:'./images/asset-11.webp',scores:{social:5,action:4,time:1}},
-{id:11,text:'大學回憶累積中',img:'./images/asset-12.webp',scores:{social:4,action:3,time:1}},
-{id:12,text:'每天都比昨天更獨立',img:'./images/asset-13.webp',scores:{action:5,time:3,survival:3,study:2}}
+{id:1,text:'選課比搶演唱會門票還難',img:'./asset-02.webp',scores:{study:2,action:5,survival:2}},
+{id:2,text:'今天也在學校迷路了',img:'./asset-03.webp',scores:{action:4,survival:2,social:1}},
+{id:3,text:'努力交到第一群朋友',img:'./asset-04.webp',scores:{social:5,action:3}},
+{id:4,text:'第一次離家住宿',img:'./asset-05.webp',scores:{survival:4,action:3,social:2}},
+{id:5,text:'我知道學餐哪間比較好吃',img:'./asset-06.webp',scores:{survival:4,social:2}},
+{id:6,text:'報告做不完',img:'./asset-07.webp',scores:{study:5,action:4,survival:2}},
+{id:7,text:'每次都想翹早八',img:'./asset-08.webp',scores:{survival:5,study:1,action:-1}},
+{id:8,text:'月底開始吃土',img:'./asset-09.webp',scores:{survival:5,time:2,action:2}},
+{id:9,text:'打工賺生活費',img:'./asset-10.webp',scores:{time:5,action:4,survival:3}},
+{id:10,text:'社團活動跑不停',img:'./asset-11.webp',scores:{social:5,action:4,time:1}},
+{id:11,text:'大學回憶累積中',img:'./asset-12.webp',scores:{social:4,action:3,time:1}},
+{id:12,text:'每天都比昨天更獨立',img:'./asset-13.webp',scores:{action:5,time:3,survival:3,study:2}}
 ];
 
 const results=[
@@ -49,18 +49,18 @@ const results=[
 ];
 
 const loadingMascots=[
-  './images/loading-course.webp',
-  './images/loading-campus.webp',
-  './images/loading-friends.webp',
-  './images/loading-dorm.webp',
-  './images/loading-food.webp',
-  './images/loading-report.webp',
-  './images/loading-sleep.webp',
-  './images/loading-saving.webp',
-  './images/loading-parttime.webp',
-  './images/loading-club.webp',
-  './images/loading-love.webp',
-  './images/loading-growth.webp'
+  './loading-course.webp',
+  './loading-campus.webp',
+  './loading-friends.webp',
+  './loading-dorm.webp',
+  './loading-food.webp',
+  './loading-report.webp',
+  './loading-sleep.webp',
+  './loading-saving.webp',
+  './loading-parttime.webp',
+  './loading-club.webp',
+  './loading-love.webp',
+  './loading-growth.webp'
 ];
 
 let loadingMascotTimer = null;
