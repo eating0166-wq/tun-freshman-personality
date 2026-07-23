@@ -1,0 +1,23 @@
+{
+  "name": "TUN 大學網｜我的大一命定人格",
+  "short_name": "大一命定人格",
+  "description": "選出 4 個最像你的校園日常，測出你的大一命定人格。",
+  "lang": "zh-TW",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#EEF8FF",
+  "theme_color": "#F6FBFF",
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

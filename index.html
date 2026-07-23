@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6fbff">
+<meta name="description" content="選出 4 個最像你的校園日常，測出你的大一命定人格！">
+<meta name="robots" content="index,follow">
+<meta name="format-detection" content="telephone=no">
+<meta name="application-name" content="大一命定人格">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="大一命定人格">
+
+<link rel="canonical" href="https://tun-freshman-personality.pages.dev/">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+
+<meta property="og:type" content="website">
+<meta property="og:locale" content="zh_TW">
+<meta property="og:site_name" content="TUN 大學網">
+<meta property="og:title" content="我的大一命定人格｜TUN 大學網">
+<meta property="og:description" content="選出 4 個最像你的校園日常，看看開學後你會是哪一種人格！">
+<meta property="og:url" content="https://tun-freshman-personality.pages.dev/">
+<meta property="og:image" content="https://tun-freshman-personality.pages.dev/assets/og-cover.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="TUN 大學網大一命定人格測驗">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="我的大一命定人格｜TUN 大學網">
+<meta name="twitter:description" content="選出 4 個最像你的校園日常，測出你的大一命定人格！">
+<meta name="twitter:image" content="https://tun-freshman-personality.pages.dev/assets/og-cover.jpg">
+<title>TUN 大學網｜我的大一命定人格</title>
+<link rel="stylesheet" href="assets/styles.css">
+
+<link rel="preload" as="image" href="./images/asset-01.webp" fetchpriority="high">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "TUN 大學網｜我的大一命定人格",
+  "url": "https://tun-freshman-personality.pages.dev/",
+  "applicationCategory": "EntertainmentApplication",
+  "operatingSystem": "Any",
+  "inLanguage": "zh-TW",
+  "description": "選出 4 個最像你的校園日常，測出你的大一命定人格。",
+  "image": "https://tun-freshman-personality.pages.dev/assets/og-cover.jpg",
+  "publisher": {
+    "@type": "Organization",
+    "name": "TUN 大學網"
+  }
+}
+</script>
+</head>
+<body>
+<main class="app" aria-live="polite">
+<div class="topline"></div>
+<header class="brand"><div class="logo">TUN <b>大學網</b></div><div class="pill">✨ 大一命定人格</div></header>
+
+<section id="welcome" class="screen">
+<div class="hero">
+<div class="sticker">大一新鮮人限定</div>
+<h1 class="nowrap-title">測出你的<span class="blue">大一命定人格</span></h1>
+<p class="lead">選出 4 個可能最像你開學會做的事<br>解鎖專屬筆記本小人造型與 5 種大學能力值</p>
+<div class="mascot-wrap"><img class="mascot" src="./images/asset-01.webp" alt="TUN 筆記本小人" decoding="async" loading="eager" fetchpriority="high"></div>
+<button class="primary" onclick="startQuiz()">快來點我測試👉</button>
+<p class="micro">直覺選就對了，不用想太久～</p>
+</div>
+</section>
+
+<section id="selection" class="screen hidden"><div class="selection-head"><div class="selection-copy"><span class="step">Step 1 / 3</span><h2>選出最能代表你的大一生活</h2><p>☺ 選 4 個最有感的，解鎖你的專屬人格！</p></div><div class="selection-count"><small>已選擇</small><strong id="counterNum">0</strong> <span>/ 4</span></div></div><div class="progress-wrap"><div class="progress"><span id="bar"></span></div><div id="progressPct" class="progress-pct">0%</div></div><div id="grid" class="traits"></div><div class="sticky"><p class="micro" style="text-align:center;margin:0 0 8px">💡 小提醒：選擇後點擊卡片即可取消</p><button id="submit" class="primary" onclick="submitSelection()" disabled>先選 4 個選項才能前往下一步喔</button></div></section>
+
+<section id="loading" class="screen hidden">
+<div class="loading"><span class="step">STEP 2</span><h2>正在召喚你的大一命定人格…</h2><div class="portal loading-cast">
+<img id="loadingMascot" class="loading-main" src="./images/loading-course.webp" alt="分析中的筆記本小人" decoding="async" loading="lazy">
+</div>
+<div class="checks">
+<span class="analysis-line">正在找尋你的校園人格...</span>
+<span class="analysis-line">分析你開學後的大學能力值....</span>
+<span class="analysis-line">不同筆記本小人正在一起分析結果中.....</span>
+</div></div>
+</section>
+
+<section id="result" class="screen hidden">
+
+<div class="card"><div class="card-inner">
+<div class="result-card-head"><div class="result-name-row"><h3 id="title" class="sticker-title">人格名稱</h3></div></div>
+<div class="result-hero"><img src="./images/asset-01.webp" alt="" decoding="async" loading="eager"></div>
+<div class="result-tags-panel"><div class="section-title sticker-title">代表標籤</div><div id="tags" class="tags"></div></div>
+<div class="result-analysis"><div class="box"><div class="section-title sticker-title">人格說明</div><div id="desc"></div></div>
+<div class="box"><div class="section-title sticker-title">開學小提醒</div><div id="skill"></div></div>
+<div class="box"><div class="stats-title section-title sticker-title">能力值分析</div><div id="stats" class="stats"></div></div></div>
+</div></div>
+<div class="actions">
+<button class="primary share-title" type="button" onclick="shareResult()">分享你的命定人格</button>
+<button class="secondary download-result" type="button" onclick="downloadResultCard()">下載人格結果卡</button>
+<button class="secondary" type="button" onclick="resetQuiz()">↻ 再抽一次</button>
+</div>
+<p class="note">分享給朋友，一起發現大一命定人格！</p>
+</section>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<aside id="debugPanel" class="debug-panel hidden" aria-label="人格測試模式"></aside>
+<script src="assets/config.js"></script>
+<script src="assets/analytics.js" defer></script>
+<script src="assets/app.js" defer></script>
+<script src="assets/register-sw.js" defer></script>
+</body>
+</html>

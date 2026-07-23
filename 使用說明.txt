@@ -1,0 +1,13 @@
+TUN 大一命定人格 v4.0 社群發布正式版
+
+已完成：
+1. CSS 與 JavaScript 拆分為獨立檔案。
+2. PNG 素材轉為透明 WebP，降低載入容量。
+3. 圖片加入 lazy loading、非同步解碼與封面優先載入。
+4. 加入 SEO、Open Graph、Twitter Card 與 1200×630 社群分享圖。
+5. 加入 favicon、Apple Touch Icon、PWA Manifest 與 Service Worker。
+6. 加入 GA4 與 Microsoft Clarity 選用設定。
+7. 加入 robots.txt、sitemap.xml、Netlify headers 與 redirects。
+8. 保留手機響應式、測驗邏輯、動畫、分享與去背圖片。
+
+正式部署前請先閱讀「部署說明.md」，並替換 YOUR-DOMAIN.example。
