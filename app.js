@@ -691,6 +691,17 @@ async function buildResultCanvas() {
   return canvas;
 }
 
+function roundRect(context, x, y, width, height, radius) {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  context.beginPath();
+  context.moveTo(x + safeRadius, y);
+  context.arcTo(x + width, y, x + width, y + height, safeRadius);
+  context.arcTo(x + width, y + height, x, y + height, safeRadius);
+  context.arcTo(x, y + height, x, y, safeRadius);
+  context.arcTo(x, y, x + width, y, safeRadius);
+  context.closePath();
+}
+
 async function downloadResultCard() {
   const button = document.querySelector('#result .download-result');
   if (!current || !currentStats) {
@@ -713,7 +724,21 @@ async function downloadResultCard() {
 
     const filename = `TUN-大一命定人格-${current.name}.png`;
     showGeneratedResultImage(blob, filename);
-    toast('結果卡已產生，可長按圖片儲存');
+
+    // 桌機瀏覽器直接下載；手機保留站內預覽，方便長按儲存或使用系統分享。
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    if (!isMobile) {
+      const link = document.createElement('a');
+      link.href = generatedResultObjectURL;
+      link.download = filename;
+      link.rel = 'noopener';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast('人格結果卡已下載');
+    } else {
+      toast('結果卡已產生，可長按圖片儲存');
+    }
 
     trackEvent('result_download', {
       personality_key: current.key,
