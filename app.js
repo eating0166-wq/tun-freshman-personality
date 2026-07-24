@@ -441,119 +441,158 @@ function wrapCanvasText(context, text, x, y, maxWidth, lineHeight, maxLines = 4)
 async function downloadResultCard() {
   if (!current || !currentStats) return;
 
-  if (typeof window.html2canvas !== 'function') {
-    toast('下載元件載入失敗，請確認網路後重新整理');
-    return;
-  }
-
-  const app = document.querySelector('main.app');
-  const resultScreen = document.getElementById('result');
-  if (!app || !resultScreen) return;
-
-  const downloadButton = document.querySelector('#result .download-result');
-  const originalButtonText = downloadButton?.textContent || '';
-  if (downloadButton) {
-    downloadButton.disabled = true;
-    downloadButton.textContent = '正在產生結果卡…';
+  const button = document.querySelector('#result .download-result');
+  const originalText = button?.textContent || '';
+  if (button) {
+    button.disabled = true;
+    button.textContent = '正在產生結果卡…';
   }
   toast('正在製作高畫質結果卡…');
 
-  // 直接複製「目前畫面上的完整結果頁」，並沿用當下手機／桌機寬度。
-  // 不再使用固定 430px 版型，確保下載圖與使用者看到的頁面一致。
-  const liveWidth = Math.max(320, Math.round(app.getBoundingClientRect().width));
-  const captureRoot = document.createElement('div');
-  captureRoot.className = 'result-export-stage';
-  captureRoot.setAttribute('aria-hidden', 'true');
-  captureRoot.style.width = `${liveWidth}px`;
-
-  const clone = app.cloneNode(true);
-  clone.classList.add('result-export-clone', 'is-exporting');
-  clone.style.width = `${liveWidth}px`;
-  clone.style.maxWidth = `${liveWidth}px`;
-
-  clone.querySelectorAll('.screen').forEach(screen => {
-    screen.classList.toggle('hidden', screen.id !== 'result');
-  });
-  clone.querySelector('#result')?.classList.remove('hidden');
-  clone.querySelector('#result .actions')?.remove();
-  clone.querySelector('#result .note')?.remove();
-
-  captureRoot.appendChild(clone);
-  document.body.appendChild(captureRoot);
-
   try {
-    if (document.fonts?.ready) await document.fonts.ready;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 1920;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas unsupported');
 
-    const images = Array.from(clone.querySelectorAll('img'));
-    await Promise.all(images.map(image => {
-      if (image.complete && image.naturalWidth) return Promise.resolve();
-      return new Promise(resolve => {
-        image.onload = resolve;
-        image.onerror = resolve;
-      });
-    }));
+    const theme = resultThemes[current.key] || ['✨', '#4f8edc', '#f2f8ff', '#b9d4f3'];
+    const accent = theme[1];
+    const border = theme[3];
+    const pageBg = theme[2];
 
-    // 等待 clone 完成一次排版，避免手機輸出時截到尚未撐開的卡片高度。
-    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    ctx.fillStyle = pageBg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const captureHeight = Math.ceil(clone.scrollHeight);
-    const canvas = await window.html2canvas(clone, {
-      backgroundColor: '#ffffff',
-      scale: Math.min(3, Math.max(2, window.devicePixelRatio || 2)),
-      useCORS: true,
-      allowTaint: false,
-      logging: false,
-      width: liveWidth,
-      height: captureHeight,
-      windowWidth: Math.max(liveWidth, document.documentElement.clientWidth),
-      windowHeight: Math.max(captureHeight, window.innerHeight),
-      scrollX: 0,
-      scrollY: 0
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 6;
+    roundRect(ctx, 48, 38, 984, 1844, 40);
+    ctx.fill(); ctx.stroke();
+    ctx.setLineDash([14, 12]);
+    ctx.lineWidth = 3;
+    roundRect(ctx, 72, 62, 936, 1796, 30);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Logo：與結果頁維持左上位置與雙色呈現
+    ctx.textAlign = 'left';
+    ctx.font = 'italic 900 42px Arial, sans-serif';
+    ctx.fillStyle = '#14a9bd';
+    ctx.fillText('TUN', 96, 126);
+    ctx.font = '900 38px system-ui, sans-serif';
+    ctx.fillStyle = '#143d71';
+    ctx.fillText('大學網', 190, 126);
+
+    // 人格標題
+    ctx.textAlign = 'center';
+    ctx.font = '900 76px system-ui, sans-serif';
+    ctx.strokeStyle = '#fff7e8';
+    ctx.lineWidth = 12;
+    ctx.strokeText(current.name, 540, 220);
+    ctx.fillStyle = accent;
+    ctx.fillText(current.name, 540, 220);
+
+    // 人物圖片
+    try {
+      const image = await loadImage(resultImages[current.key] || IMG);
+      const box = { x: 120, y: 260, width: 840, height: 560 };
+      const ratio = Math.min(box.width / image.width, box.height / image.height);
+      const width = image.width * ratio;
+      const height = image.height * ratio;
+      ctx.drawImage(image, box.x + (box.width-width)/2, box.y + (box.height-height)/2, width, height);
+    } catch (_) {}
+
+    const left = 86, width = 908, innerX = 126, innerWidth = 828;
+    let y = 850;
+
+    function measureLines(text, font, maxWidth) {
+      ctx.font = font;
+      const chars = Array.from(text || '');
+      const lines=[]; let line='';
+      for (const ch of chars) {
+        const t=line+ch;
+        if (ctx.measureText(t).width > maxWidth && line) { lines.push(line); line=ch; }
+        else line=t;
+      }
+      if (line) lines.push(line);
+      return lines;
+    }
+
+    function drawPanel(title, text, opts={}) {
+      const titleFont='900 34px system-ui, sans-serif';
+      const bodyFont='400 30px system-ui, sans-serif';
+      const lines=measureLines(text, bodyFont, innerWidth);
+      const lineH=46;
+      const h=Math.max(opts.minHeight || 150, 42 + 42 + lines.length*lineH + 34);
+      ctx.fillStyle='#fff'; ctx.strokeStyle=border; ctx.lineWidth=3;
+      roundRect(ctx,left,y,width,h,24); ctx.fill(); ctx.stroke();
+      ctx.textAlign='left'; ctx.fillStyle=accent; ctx.font=titleFont; ctx.fillText(title,innerX,y+50);
+      ctx.fillStyle='#21384c'; ctx.font=bodyFont;
+      lines.forEach((line,i)=>ctx.fillText(line,innerX,y+100+i*lineH));
+      y += h + 24;
+    }
+
+    // Tags panel，自動換行與自動高度
+    const tagRows=[]; let row=[]; let rowW=0;
+    ctx.font='700 27px system-ui, sans-serif';
+    for (const tag of current.hashtags) {
+      const w=ctx.measureText(tag).width+44;
+      if (row.length && rowW+w+18>innerWidth) { tagRows.push(row); row=[]; rowW=0; }
+      row.push({tag,w}); rowW += w + (row.length>1?18:0);
+    }
+    if(row.length) tagRows.push(row);
+    const tagH=104+tagRows.length*58;
+    ctx.fillStyle='#fff'; ctx.strokeStyle=border; ctx.lineWidth=3;
+    roundRect(ctx,left,y,width,tagH,24); ctx.fill(); ctx.stroke();
+    ctx.textAlign='left'; ctx.fillStyle=accent; ctx.font='900 34px system-ui, sans-serif'; ctx.fillText('代表標籤',innerX,y+50);
+    let ty=y+82;
+    for(const r of tagRows){let tx=innerX; ty+=50; for(const item of r){ctx.fillStyle='#fff';ctx.strokeStyle=border;ctx.lineWidth=2;roundRect(ctx,tx,ty-34,item.w,46,18);ctx.fill();ctx.stroke();ctx.fillStyle=accent;ctx.font='700 27px system-ui, sans-serif';ctx.fillText(item.tag,tx+22,ty);tx+=item.w+18;}}
+    y += tagH + 24;
+
+    drawPanel('人格說明', current.desc, {minHeight: 170});
+    drawPanel('開學小提醒', current.skill, {minHeight: 160});
+
+    const statsH=300;
+    ctx.fillStyle='#fff';ctx.strokeStyle=border;ctx.lineWidth=3;roundRect(ctx,left,y,width,statsH,24);ctx.fill();ctx.stroke();
+    ctx.textAlign='left';ctx.fillStyle=accent;ctx.font='900 34px system-ui, sans-serif';ctx.fillText('能力值分析',innerX,y+50);
+    dims.forEach((dimension,index)=>{
+      const yy=y+96+index*39; const value=currentStats[dimension]??50;
+      ctx.fillStyle='#405b72';ctx.font='700 22px system-ui, sans-serif';ctx.fillText(labels[dimension],innerX,yy);
+      ctx.fillStyle='#e7eef4';roundRect(ctx,innerX+160,yy-18,520,20,10);ctx.fill();
+      ctx.fillStyle=accent;roundRect(ctx,innerX+160,yy-18,520*value/100,20,10);ctx.fill();
+      ctx.fillStyle=accent;ctx.font='700 22px system-ui, sans-serif';ctx.fillText(`${value}%`,innerX+705,yy);
     });
 
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1));
-    if (!blob) throw new Error('PNG export failed');
-
     const filename = `TUN-大一命定人格-${current.name}.png`;
-    const downloadUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = filename;
-    link.rel = 'noopener';
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-    // iOS 對 download 屬性支援不一致；若沒有觸發下載，開啟圖片供長按儲存。
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (isIOS) {
-      window.setTimeout(() => {
-        const preview = window.open(downloadUrl, '_blank', 'noopener');
-        if (preview) toast('圖片已開啟，請長按選擇「儲存到照片」');
-      }, 450);
-    } else {
+    if (blob && !isIOS) {
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=filename; a.style.display='none';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
       toast('結果卡已下載');
+    } else {
+      // iPhone／App 內建瀏覽器常不支援 download，直接開啟 PNG 供長按儲存。
+      const dataUrl=canvas.toDataURL('image/png',1);
+      const opened=window.open('', '_blank');
+      if (opened) {
+        opened.document.write(`<title>${filename}</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;background:#111}img{display:block;width:100%;height:auto}</style><img src="${dataUrl}" alt="${filename}">`);
+        opened.document.close();
+        toast('圖片已開啟，請長按選擇「儲存到照片」');
+      } else {
+        window.location.href=dataUrl;
+      }
     }
 
-    // 延後釋放，避免手機瀏覽器尚未讀取完就失效。
-    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 60000);
-
-    trackEvent('result_download', {
-      personality_key: current.key,
-      personality_name: current.name,
-      layout: 'live_result_layout_v612'
-    });
+    trackEvent('result_download',{personality_key:current.key,personality_name:current.name,layout:'canvas_v613'});
   } catch (error) {
     console.error(error);
     toast('結果卡產生失敗，請重新整理後再試');
   } finally {
-    captureRoot.remove();
-    if (downloadButton) {
-      downloadButton.disabled = false;
-      downloadButton.textContent = originalButtonText;
-    }
+    if (button) { button.disabled=false; button.textContent=originalText; }
   }
 }
 
