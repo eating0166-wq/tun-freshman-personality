@@ -84,6 +84,7 @@ function show(screenId) {
     const element = document.getElementById(id);
     if (element) element.classList.toggle('hidden', id !== screenId);
   });
+  document.body.dataset.screen = screenId;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -540,28 +541,41 @@ async function buildResultCanvas() {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Logo：維持分析結果頁的雙色字樣與左上位置。
+  // 與網頁結果頁共用的品牌列。
   ctx.textAlign = 'left';
   ctx.font = 'italic 900 42px Arial, sans-serif';
   ctx.fillStyle = '#14a9bd';
   ctx.fillText('TUN', 96, 126);
-  ctx.font = '900 38px system-ui, sans-serif';
+  const tunWidth = ctx.measureText('TUN').width;
+  ctx.font = '900 34px system-ui, sans-serif';
   ctx.fillStyle = '#143d71';
-  ctx.fillText('大學網', 190, 126);
+  ctx.fillText('大學網', 96 + tunWidth + 12, 126);
 
-  // 人格標題。
+  // 右上人格測驗膠囊。
+  ctx.fillStyle = '#edf7ff';
+  ctx.strokeStyle = '#9fc7eb';
+  ctx.lineWidth = 2;
+  roundRect(ctx, 724, 86, 258, 62, 31);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#17365e';
+  ctx.font = '800 24px system-ui, sans-serif';
   ctx.textAlign = 'center';
-  ctx.font = '900 76px system-ui, sans-serif';
+  ctx.fillText('✨ 大一命定人格', 853, 126);
+
+  // 人格標題：尺寸與網頁版一致。
+  ctx.textAlign = 'center';
+  ctx.font = '900 72px system-ui, sans-serif';
   ctx.strokeStyle = '#fff7e8';
-  ctx.lineWidth = 12;
-  ctx.strokeText(current.name, 540, 220);
+  ctx.lineWidth = 11;
+  ctx.strokeText(current.name, 540, 236);
   ctx.fillStyle = accent;
-  ctx.fillText(current.name, 540, 220);
+  ctx.fillText(current.name, 540, 236);
 
   // 人格圖片。
   try {
     const image = await loadImage(resultImages[current.key] || IMG);
-    const box = { x: 120, y: 250, width: 840, height: 570 };
+    const box = { x: 120, y: 270, width: 840, height: 540 };
     const ratio = Math.min(box.width / image.width, box.height / image.height);
     const width = image.width * ratio;
     const height = image.height * ratio;
@@ -574,7 +588,7 @@ async function buildResultCanvas() {
   const panelWidth = 908;
   const contentX = 126;
   const contentWidth = 828;
-  let y = 850;
+  let y = 830;
 
   const drawPanel = (title, text, minHeight = 150) => {
     const titleFont = '900 34px system-ui, sans-serif';
@@ -743,7 +757,7 @@ async function downloadResultCard() {
     trackEvent('result_download', {
       personality_key: current.key,
       personality_name: current.name,
-      layout: 'local_canvas_preview_v617'
+      layout: 'shared_result_layout_v700'
     });
   } catch (error) {
     console.error('downloadResultCard failed:', error);
