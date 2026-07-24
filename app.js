@@ -438,35 +438,9 @@ function wrapCanvasText(context, text, x, y, maxWidth, lineHeight, maxLines = 4)
   });
 }
 
-async function ensureHtml2Canvas() {
-  if (typeof window.html2canvas === 'function') return window.html2canvas;
-
-  const sources = [
-    'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
-    'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js'
-  ];
-
-  for (const src of sources) {
-    try {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = src;
-        script.async = true;
-        script.onload = resolve;
-        script.onerror = () => reject(new Error(`無法載入 ${src}`));
-        document.head.appendChild(script);
-      });
-      if (typeof window.html2canvas === 'function') return window.html2canvas;
-    } catch (error) {
-      console.warn(error);
-    }
-  }
-
-  throw new Error('截圖工具載入失敗，請確認網路後重新整理');
-}
-
 let generatedResultObjectURL = '';
 let generatedResultFilename = '';
+let generatedResultBlob = null;
 
 function showGeneratedResultImage(blob, filename) {
   const page = document.getElementById('result-image-page');
@@ -474,6 +448,7 @@ function showGeneratedResultImage(blob, filename) {
   if (!page || !image) throw new Error('找不到結果圖片預覽區');
 
   if (generatedResultObjectURL) URL.revokeObjectURL(generatedResultObjectURL);
+  generatedResultBlob = blob;
   generatedResultObjectURL = URL.createObjectURL(blob);
   generatedResultFilename = filename;
   image.src = generatedResultObjectURL;
@@ -487,24 +462,238 @@ function closeGeneratedResultImage() {
   document.body.style.overflow = '';
 }
 
-function saveGeneratedResultImage() {
-  if (!generatedResultObjectURL) {
+async function saveGeneratedResultImage() {
+  if (!generatedResultBlob || !generatedResultObjectURL) {
     toast('請先產生分析卡片');
     return;
   }
+
+  const filename = generatedResultFilename || 'TUN-大一命定人格.png';
+  const file = new File([generatedResultBlob], filename, { type: 'image/png' });
+
+  // 手機優先開啟系統分享面板，iPhone 可從面板選擇「儲存影像」。
+  if (navigator.share && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: filename });
+      return;
+    } catch (error) {
+      if (error?.name === 'AbortError') return;
+    }
+  }
+
+  // 桌機與支援 download 的瀏覽器直接下載。
   const link = document.createElement('a');
   link.href = generatedResultObjectURL;
-  link.download = generatedResultFilename || 'TUN-大一命定人格.png';
+  link.download = filename;
+  link.rel = 'noopener';
   document.body.appendChild(link);
   link.click();
   link.remove();
+
+  toast('若手機未自動下載，請直接長按上方圖片儲存');
+}
+
+function measureCanvasLines(context, text, maxWidth) {
+  const characters = Array.from(text || '');
+  const lines = [];
+  let line = '';
+  for (const character of characters) {
+    const test = line + character;
+    if (line && context.measureText(test).width > maxWidth) {
+      lines.push(line);
+      line = character;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+async function buildResultCanvas() {
+  if (!current || !currentStats) throw new Error('找不到人格結果');
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1920;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('此瀏覽器不支援圖片產生功能');
+
+  const theme = resultThemes[current.key] || ['✨', '#4f8edc', '#f2f8ff', '#b9d4f3'];
+  const accent = theme[1];
+  const pageBg = theme[2];
+  const border = theme[3];
+
+  ctx.fillStyle = pageBg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 6;
+  roundRect(ctx, 48, 38, 984, 1844, 40);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.setLineDash([14, 12]);
+  ctx.lineWidth = 3;
+  roundRect(ctx, 72, 62, 936, 1796, 30);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Logo：維持分析結果頁的雙色字樣與左上位置。
+  ctx.textAlign = 'left';
+  ctx.font = 'italic 900 42px Arial, sans-serif';
+  ctx.fillStyle = '#14a9bd';
+  ctx.fillText('TUN', 96, 126);
+  ctx.font = '900 38px system-ui, sans-serif';
+  ctx.fillStyle = '#143d71';
+  ctx.fillText('大學網', 190, 126);
+
+  // 人格標題。
+  ctx.textAlign = 'center';
+  ctx.font = '900 76px system-ui, sans-serif';
+  ctx.strokeStyle = '#fff7e8';
+  ctx.lineWidth = 12;
+  ctx.strokeText(current.name, 540, 220);
+  ctx.fillStyle = accent;
+  ctx.fillText(current.name, 540, 220);
+
+  // 人格圖片。
+  try {
+    const image = await loadImage(resultImages[current.key] || IMG);
+    const box = { x: 120, y: 250, width: 840, height: 570 };
+    const ratio = Math.min(box.width / image.width, box.height / image.height);
+    const width = image.width * ratio;
+    const height = image.height * ratio;
+    ctx.drawImage(image, box.x + (box.width - width) / 2, box.y + (box.height - height) / 2, width, height);
+  } catch (error) {
+    console.warn('結果圖片載入失敗', error);
+  }
+
+  const panelX = 86;
+  const panelWidth = 908;
+  const contentX = 126;
+  const contentWidth = 828;
+  let y = 850;
+
+  const drawPanel = (title, text, minHeight = 150) => {
+    const titleFont = '900 34px system-ui, sans-serif';
+    const bodyFont = '400 30px system-ui, sans-serif';
+    ctx.font = bodyFont;
+    const lines = measureCanvasLines(ctx, text, contentWidth);
+    const lineHeight = 46;
+    const height = Math.max(minHeight, 42 + 42 + lines.length * lineHeight + 34);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 3;
+    roundRect(ctx, panelX, y, panelWidth, height, 24);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = accent;
+    ctx.font = titleFont;
+    ctx.fillText(title, contentX, y + 50);
+
+    ctx.fillStyle = '#21384c';
+    ctx.font = bodyFont;
+    lines.forEach((line, index) => ctx.fillText(line, contentX, y + 100 + index * lineHeight));
+    y += height + 24;
+  };
+
+  // 代表標籤：依內容自動換行與撐高。
+  const rows = [];
+  let row = [];
+  let rowWidth = 0;
+  ctx.font = '700 27px system-ui, sans-serif';
+  for (const tag of current.hashtags) {
+    const width = ctx.measureText(tag).width + 44;
+    if (row.length && rowWidth + width + 18 > contentWidth) {
+      rows.push(row);
+      row = [];
+      rowWidth = 0;
+    }
+    row.push({ tag, width });
+    rowWidth += width + (row.length > 1 ? 18 : 0);
+  }
+  if (row.length) rows.push(row);
+
+  const tagsHeight = 104 + rows.length * 58;
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 3;
+  roundRect(ctx, panelX, y, panelWidth, tagsHeight, 24);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = accent;
+  ctx.font = '900 34px system-ui, sans-serif';
+  ctx.fillText('代表標籤', contentX, y + 50);
+
+  let tagY = y + 82;
+  for (const currentRow of rows) {
+    let tagX = contentX;
+    tagY += 50;
+    for (const item of currentRow) {
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = border;
+      ctx.lineWidth = 2;
+      roundRect(ctx, tagX, tagY - 34, item.width, 46, 18);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = accent;
+      ctx.font = '700 27px system-ui, sans-serif';
+      ctx.fillText(item.tag, tagX + 22, tagY);
+      tagX += item.width + 18;
+    }
+  }
+  y += tagsHeight + 24;
+
+  drawPanel('人格說明', current.desc, 170);
+  drawPanel('開學小提醒', current.skill, 160);
+
+  // 能力值分析。
+  const statsHeight = 300;
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 3;
+  roundRect(ctx, panelX, y, panelWidth, statsHeight, 24);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = accent;
+  ctx.font = '900 34px system-ui, sans-serif';
+  ctx.fillText('能力值分析', contentX, y + 50);
+
+  dims.forEach((dimension, index) => {
+    const lineY = y + 96 + index * 39;
+    const value = currentStats[dimension] ?? 50;
+    ctx.fillStyle = '#405b72';
+    ctx.font = '700 22px system-ui, sans-serif';
+    ctx.fillText(labels[dimension], contentX, lineY);
+
+    ctx.fillStyle = '#e7eef4';
+    roundRect(ctx, contentX + 160, lineY - 18, 520, 20, 10);
+    ctx.fill();
+
+    ctx.fillStyle = accent;
+    roundRect(ctx, contentX + 160, lineY - 18, 520 * value / 100, 20, 10);
+    ctx.fill();
+
+    ctx.fillStyle = accent;
+    ctx.font = '700 22px system-ui, sans-serif';
+    ctx.fillText(`${value}%`, contentX + 705, lineY);
+  });
+
+  return canvas;
 }
 
 async function downloadResultCard() {
-  const cardElement = document.getElementById('result-card');
   const button = document.querySelector('#result .download-result');
-
-  if (!cardElement || !current || !currentStats) {
+  if (!current || !currentStats) {
     toast('找不到人格結果，請重新測驗');
     return;
   }
@@ -516,39 +705,8 @@ async function downloadResultCard() {
   }
 
   try {
-    const html2canvas = await ensureHtml2Canvas();
     await document.fonts?.ready;
-
-    const images = Array.from(cardElement.querySelectorAll('img'));
-    await Promise.all(images.map(image => {
-      if (image.complete && image.naturalWidth > 0) return Promise.resolve();
-      return new Promise(resolve => {
-        image.addEventListener('load', resolve, { once: true });
-        image.addEventListener('error', resolve, { once: true });
-      });
-    }));
-
-    const canvas = await html2canvas(cardElement, {
-      scale: Math.min(Math.max(window.devicePixelRatio || 1, 2), 3),
-      useCORS: true,
-      allowTaint: false,
-      backgroundColor: '#ffffff',
-      logging: false,
-      imageTimeout: 15000,
-      scrollX: 0,
-      scrollY: -window.scrollY,
-      windowWidth: document.documentElement.clientWidth,
-      onclone: clonedDocument => {
-        const clonedCard = clonedDocument.getElementById('result-card');
-        if (clonedCard) {
-          clonedCard.style.transform = 'none';
-          clonedCard.style.margin = '0';
-          clonedCard.style.height = 'auto';
-          clonedCard.style.overflow = 'visible';
-        }
-      }
-    });
-
+    const canvas = await buildResultCanvas();
     const blob = await new Promise((resolve, reject) => {
       canvas.toBlob(value => value ? resolve(value) : reject(new Error('圖片轉換失敗')), 'image/png', 1);
     });
@@ -560,7 +718,7 @@ async function downloadResultCard() {
     trackEvent('result_download', {
       personality_key: current.key,
       personality_name: current.name,
-      layout: 'dom_preview_v616'
+      layout: 'local_canvas_preview_v617'
     });
   } catch (error) {
     console.error('downloadResultCard failed:', error);
