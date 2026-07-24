@@ -1253,3 +1253,33 @@ body[data-screen="result"] #result{
   #result #result-card.is-canvas-ready{border-radius:18px}
   #result .canonical-result-image{border-radius:18px}
 }
+
+
+/* =========================================================
+   v7.0.2：分析結果頁樣式固定；下載卡僅輸出相同視覺，不取代網頁 DOM
+   ========================================================= */
+#result #result-card,
+#result #result-card.is-canvas-ready{
+  aspect-ratio:452 / 728 !important;
+  padding:16px 14px 14px !important;
+  overflow:visible !important;
+  background:#fff !important;
+  border-width:2px !important;
+  box-shadow:var(--shadow) !important;
+}
+#result #result-card .card-inner,
+#result #result-card.is-canvas-ready .card-inner{
+  display:flex !important;
+}
+#result .canonical-result-image{
+  display:none !important;
+}
+.result-image-page .result-card-wrapper{
+  max-width:452px;
+  border-radius:22px;
+}
+.result-image-page .result-image{
+  aspect-ratio:1080 / 1740;
+  object-fit:contain;
+  background:#fff;
+}
