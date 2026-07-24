@@ -439,249 +439,97 @@ function wrapCanvasText(context, text, x, y, maxWidth, lineHeight, maxLines = 4)
 }
 
 async function downloadResultCard() {
-  if (!current || !currentStats) {
+  const cardElement = document.getElementById('result-card');
+  const button = document.querySelector('#result .download-result');
+
+  if (!cardElement || !current || !currentStats) {
     toast('找不到人格結果，請重新測驗');
     return;
   }
 
-  const button = document.querySelector('#result .download-result');
-  const originalText = button?.textContent || '';
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const isInApp = /Line|FBAN|FBAV|Instagram|Threads/i.test(navigator.userAgent);
-
-  // iOS／App 內瀏覽器會封鎖「等待圖片完成後才 window.open」的彈窗。
-  // 必須在使用者點擊的同一刻先開啟空白頁，之後再把圖片寫入。
-  let previewWindow = null;
-  if (isIOS || isInApp) {
-    try {
-      previewWindow = window.open('about:blank', '_blank');
-      if (previewWindow) {
-        previewWindow.document.write('<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>正在產生結果卡</title><style>html,body{margin:0;min-height:100%;display:grid;place-items:center;background:#f4f8ff;font-family:system-ui;color:#143d71}p{padding:24px;text-align:center}</style><p>正在產生高畫質結果卡，請稍候…</p>');
-        previewWindow.document.close();
-      }
-    } catch (_) {
-      previewWindow = null;
-    }
+  if (typeof window.html2canvas !== 'function') {
+    toast('下載工具尚未載入，請重新整理後再試');
+    return;
   }
 
+  const originalText = button?.textContent || '下載人格結果卡';
   if (button) {
     button.disabled = true;
-    button.textContent = '正在產生結果卡…';
+    button.textContent = '圖片生成中…';
   }
-  toast('正在製作高畫質結果卡…');
 
   try {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1080;
-    canvas.height = 1920;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas unsupported');
+    await document.fonts?.ready;
 
-    const theme = resultThemes[current.key] || ['✨', '#4f8edc', '#f2f8ff', '#b9d4f3'];
-    const accent = theme[1];
-    const border = theme[3];
-    const pageBg = theme[2];
+    const images = Array.from(cardElement.querySelectorAll('img'));
+    await Promise.all(images.map(image => {
+      if (image.complete && image.naturalWidth > 0) return Promise.resolve();
+      return new Promise(resolve => {
+        image.addEventListener('load', resolve, { once: true });
+        image.addEventListener('error', resolve, { once: true });
+      });
+    }));
 
-    ctx.fillStyle = pageBg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.fillStyle = '#fff';
-    ctx.strokeStyle = border;
-    ctx.lineWidth = 6;
-    roundRect(ctx, 48, 38, 984, 1844, 40);
-    ctx.fill(); ctx.stroke();
-    ctx.setLineDash([14, 12]);
-    ctx.lineWidth = 3;
-    roundRect(ctx, 72, 62, 936, 1796, 30);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    ctx.textAlign = 'left';
-    ctx.font = 'italic 900 42px Arial, sans-serif';
-    ctx.fillStyle = '#14a9bd';
-    ctx.fillText('TUN', 96, 126);
-    ctx.font = '900 38px system-ui, sans-serif';
-    ctx.fillStyle = '#143d71';
-    ctx.fillText('大學網', 190, 126);
-
-    ctx.textAlign = 'center';
-    ctx.font = '900 76px system-ui, sans-serif';
-    ctx.strokeStyle = '#fff7e8';
-    ctx.lineWidth = 12;
-    ctx.strokeText(current.name, 540, 220);
-    ctx.fillStyle = accent;
-    ctx.fillText(current.name, 540, 220);
-
-    const image = await loadImage(resultImages[current.key] || IMG);
-    const imageBox = { x: 120, y: 260, width: 840, height: 560 };
-    const ratio = Math.min(imageBox.width / image.width, imageBox.height / image.height);
-    const imageWidth = image.width * ratio;
-    const imageHeight = image.height * ratio;
-    ctx.drawImage(
-      image,
-      imageBox.x + (imageBox.width - imageWidth) / 2,
-      imageBox.y + (imageBox.height - imageHeight) / 2,
-      imageWidth,
-      imageHeight
-    );
-
-    const left = 86, width = 908, innerX = 126, innerWidth = 828;
-    let y = 850;
-
-    function measureLines(text, font, maxWidth) {
-      ctx.font = font;
-      const lines = [];
-      let line = '';
-      for (const character of Array.from(text || '')) {
-        const test = line + character;
-        if (ctx.measureText(test).width > maxWidth && line) {
-          lines.push(line);
-          line = character;
-        } else {
-          line = test;
+    // 直接截取目前畫面上的分析結果卡，因此手機版與網頁版呈現會完全同步。
+    const canvas = await window.html2canvas(cardElement, {
+      scale: Math.min(Math.max(window.devicePixelRatio || 1, 2), 3),
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: null,
+      logging: false,
+      imageTimeout: 15000,
+      scrollX: 0,
+      scrollY: -window.scrollY,
+      windowWidth: document.documentElement.clientWidth,
+      onclone: clonedDocument => {
+        const clonedCard = clonedDocument.getElementById('result-card');
+        if (clonedCard) {
+          clonedCard.style.transform = 'none';
+          clonedCard.style.margin = '0';
         }
       }
-      if (line) lines.push(line);
-      return lines;
-    }
-
-    function drawPanel(title, text, opts = {}) {
-      const titleFont = '900 34px system-ui, sans-serif';
-      const bodyFont = '400 30px system-ui, sans-serif';
-      const lines = measureLines(text, bodyFont, innerWidth);
-      const lineHeight = 46;
-      const height = Math.max(opts.minHeight || 150, 118 + lines.length * lineHeight);
-      ctx.fillStyle = '#fff';
-      ctx.strokeStyle = border;
-      ctx.lineWidth = 3;
-      roundRect(ctx, left, y, width, height, 24);
-      ctx.fill(); ctx.stroke();
-      ctx.textAlign = 'left';
-      ctx.fillStyle = accent;
-      ctx.font = titleFont;
-      ctx.fillText(title, innerX, y + 50);
-      ctx.fillStyle = '#21384c';
-      ctx.font = bodyFont;
-      lines.forEach((line, index) => ctx.fillText(line, innerX, y + 100 + index * lineHeight));
-      y += height + 24;
-    }
-
-    const tagRows = [];
-    let row = [];
-    let rowWidth = 0;
-    ctx.font = '700 27px system-ui, sans-serif';
-    for (const tag of current.hashtags) {
-      const tagWidth = ctx.measureText(tag).width + 44;
-      if (row.length && rowWidth + tagWidth + 18 > innerWidth) {
-        tagRows.push(row);
-        row = [];
-        rowWidth = 0;
-      }
-      row.push({ tag, width: tagWidth });
-      rowWidth += tagWidth + (row.length > 1 ? 18 : 0);
-    }
-    if (row.length) tagRows.push(row);
-
-    const tagsHeight = 104 + tagRows.length * 58;
-    ctx.fillStyle = '#fff';
-    ctx.strokeStyle = border;
-    ctx.lineWidth = 3;
-    roundRect(ctx, left, y, width, tagsHeight, 24);
-    ctx.fill(); ctx.stroke();
-    ctx.textAlign = 'left';
-    ctx.fillStyle = accent;
-    ctx.font = '900 34px system-ui, sans-serif';
-    ctx.fillText('代表標籤', innerX, y + 50);
-    let tagY = y + 82;
-    for (const tagRow of tagRows) {
-      let tagX = innerX;
-      tagY += 50;
-      for (const item of tagRow) {
-        ctx.fillStyle = '#fff';
-        ctx.strokeStyle = border;
-        ctx.lineWidth = 2;
-        roundRect(ctx, tagX, tagY - 34, item.width, 46, 18);
-        ctx.fill(); ctx.stroke();
-        ctx.fillStyle = accent;
-        ctx.font = '700 27px system-ui, sans-serif';
-        ctx.fillText(item.tag, tagX + 22, tagY);
-        tagX += item.width + 18;
-      }
-    }
-    y += tagsHeight + 24;
-
-    drawPanel('人格說明', current.desc, { minHeight: 170 });
-    drawPanel('開學小提醒', current.skill, { minHeight: 160 });
-
-    const statsHeight = 300;
-    ctx.fillStyle = '#fff';
-    ctx.strokeStyle = border;
-    ctx.lineWidth = 3;
-    roundRect(ctx, left, y, width, statsHeight, 24);
-    ctx.fill(); ctx.stroke();
-    ctx.textAlign = 'left';
-    ctx.fillStyle = accent;
-    ctx.font = '900 34px system-ui, sans-serif';
-    ctx.fillText('能力值分析', innerX, y + 50);
-    dims.forEach((dimension, index) => {
-      const statY = y + 96 + index * 39;
-      const value = currentStats[dimension] ?? 50;
-      ctx.fillStyle = '#405b72';
-      ctx.font = '700 22px system-ui, sans-serif';
-      ctx.fillText(labels[dimension], innerX, statY);
-      ctx.fillStyle = '#e7eef4';
-      roundRect(ctx, innerX + 160, statY - 18, 520, 20, 10);
-      ctx.fill();
-      ctx.fillStyle = accent;
-      roundRect(ctx, innerX + 160, statY - 18, 520 * value / 100, 20, 10);
-      ctx.fill();
-      ctx.fillStyle = accent;
-      ctx.font = '700 22px system-ui, sans-serif';
-      ctx.fillText(`${value}%`, innerX + 705, statY);
     });
 
-    let blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-    if (!blob) {
-      const response = await fetch(canvas.toDataURL('image/png'));
-      blob = await response.blob();
-    }
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(value => value ? resolve(value) : reject(new Error('圖片轉換失敗')), 'image/png', 1);
+    });
 
     const filename = `TUN-大一命定人格-${current.name}.png`;
-    const blobUrl = URL.createObjectURL(blob);
+    const file = new File([blob], filename, { type: 'image/png' });
 
-    if (previewWindow && !previewWindow.closed) {
-      previewWindow.document.open();
-      previewWindow.document.write(`<!doctype html>
-        <html lang="zh-Hant"><head><meta name="viewport" content="width=device-width,initial-scale=1">
-        <title>${filename}</title><style>
-        html,body{margin:0;background:#111;font-family:system-ui;color:#fff}
-        .tip{position:sticky;top:0;z-index:2;padding:12px 16px;background:#143d71;text-align:center;font-size:14px}
-        img{display:block;width:100%;height:auto;background:#fff}
-        </style></head><body><div class="tip">請長按圖片，選擇「儲存到照片」或「下載圖片」</div><img src="${blobUrl}" alt="${filename}"></body></html>`);
-      previewWindow.document.close();
-      toast('結果卡已開啟，請長按圖片儲存');
+    // 手機瀏覽器優先使用原生分享／儲存面板，成功率比模擬連結更高。
+    if (navigator.canShare?.({ files: [file] }) && navigator.share) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: `我的大一命定人格是「${current.name}」`,
+          text: 'TUN 大一命定人格測驗結果'
+        });
+        toast('結果卡已產生');
+      } catch (shareError) {
+        if (shareError?.name === 'AbortError') return;
+        throw shareError;
+      }
     } else {
-      const anchor = document.createElement('a');
-      anchor.href = blobUrl;
-      anchor.download = filename;
-      anchor.rel = 'noopener';
-      anchor.style.display = 'none';
-      document.body.appendChild(anchor);
-      anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-      anchor.remove();
+      const imageURL = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = imageURL;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(imageURL), 60000);
       toast('結果卡已下載');
     }
 
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
     trackEvent('result_download', {
       personality_key: current.key,
       personality_name: current.name,
-      layout: 'canvas_v614'
+      layout: 'dom_html2canvas_v615'
     });
   } catch (error) {
     console.error('downloadResultCard failed:', error);
-    if (previewWindow && !previewWindow.closed) previewWindow.close();
     toast(`結果卡產生失敗：${error?.message || '請重新整理後再試'}`);
   } finally {
     if (button) {
