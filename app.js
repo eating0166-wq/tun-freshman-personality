@@ -441,173 +441,88 @@ function wrapCanvasText(context, text, x, y, maxWidth, lineHeight, maxLines = 4)
 async function downloadResultCard() {
   if (!current || !currentStats) return;
 
-  // v6.1: output uses the same tall mobile-card proportions and hierarchy
-  // as the on-page result instead of the previous compressed 4:5 poster.
-  const canvas = document.createElement('canvas');
-  canvas.width = 1080;
-  canvas.height = 1920;
-
-  const context = canvas.getContext('2d');
-  const theme = resultThemes[current.key] || ['✨', '#4f8edc', '#f2f8ff', '#b9d4f3'];
-  const cuteFont = '"Arial Rounded MT Bold","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
-
-  // Same white result card and pale outline used on the website.
-  context.fillStyle = '#ffffff';
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.strokeStyle = theme[3];
-  context.lineWidth = 5;
-  roundRect(context, 36, 28, 1008, 1860, 38);
-  context.stroke();
-
-  context.save();
-  context.setLineDash([11, 9]);
-  context.strokeStyle = theme[3];
-  context.lineWidth = 2;
-  roundRect(context, 58, 50, 964, 1816, 28);
-  context.stroke();
-  context.restore();
-
-  // Original TUN logo placement and colors.
-  context.textAlign = 'left';
-  context.textBaseline = 'alphabetic';
-  context.font = `italic 950 38px ${cuteFont}`;
-  context.fillStyle = '#17a8c2';
-  context.fillText('TUN', 82, 112);
-  const tunWidth = context.measureText('TUN').width;
-  context.font = `950 33px ${cuteFont}`;
-  context.fillStyle = '#172f51';
-  context.fillText('大學網', 92 + tunWidth, 112);
-
-  // Result title: same centered, accent-colored hierarchy as the result page.
-  context.textAlign = 'center';
-  context.font = `900 82px ${cuteFont}`;
-  context.fillStyle = theme[1];
-  context.fillText(current.name, 540, 230);
-
-  // Character image with the same dominant visual proportion as the page.
-  try {
-    const image = await loadImage(resultImages[current.key] || IMG);
-    const box = { x: 95, y: 280, width: 890, height: 520 };
-    const ratio = Math.min(box.width / image.width, box.height / image.height);
-    const width = image.width * ratio;
-    const height = image.height * ratio;
-    context.drawImage(image, box.x + (box.width - width) / 2, box.y + (box.height - height) / 2, width, height);
-  } catch (_) {
-    context.fillStyle = theme[2];
-    roundRect(context, 95, 280, 890, 520, 26);
-    context.fill();
-  }
-
-  const drawPanel = (x, y, width, height) => {
-    context.fillStyle = '#ffffff';
-    context.strokeStyle = theme[3];
-    context.lineWidth = 3;
-    roundRect(context, x, y, width, height, 24);
-    context.fill();
-    context.stroke();
-  };
-
-  const drawLeftTitle = (title, x, y) => {
-    context.textAlign = 'left';
-    context.font = `900 39px ${cuteFont}`;
-    context.fillStyle = theme[1];
-    context.fillText(title, x, y);
-  };
-
-  // Tags section.
-  drawPanel(76, 820, 928, 220);
-  drawLeftTitle('代表標籤', 112, 885);
-  context.font = `800 27px ${cuteFont}`;
-  context.textAlign = 'left';
-  let tagX = 112;
-  let tagY = 930;
-  current.hashtags.slice(0, 4).forEach(tag => {
-    const tagWidth = Math.min(250, context.measureText(tag).width + 46);
-    if (tagX + tagWidth > 965) { tagX = 112; tagY += 68; }
-    context.fillStyle = '#ffffff';
-    context.strokeStyle = theme[3];
-    context.lineWidth = 2.5;
-    roundRect(context, tagX, tagY, tagWidth, 52, 16);
-    context.fill();
-    context.stroke();
-    context.fillStyle = theme[1];
-    context.fillText(tag, tagX + 22, tagY + 36);
-    tagX += tagWidth + 18;
-  });
-
-  // Personality description.
-  drawPanel(76, 1060, 928, 255);
-  drawLeftTitle('人格說明', 112, 1128);
-  context.textAlign = 'left';
-  context.fillStyle = '#17375e';
-  context.font = `400 31px ${cuteFont}`;
-  wrapCanvasText(context, current.desc, 112, 1184, 850, 48, 3);
-
-  // Freshman reminder.
-  drawPanel(76, 1335, 928, 235);
-  drawLeftTitle('開學小提醒', 112, 1403);
-  context.fillStyle = '#17375e';
-  context.font = `400 31px ${cuteFont}`;
-  wrapCanvasText(context, current.skill, 112, 1459, 850, 48, 3);
-
-  // Stats block.
-  drawPanel(76, 1590, 928, 250);
-  drawLeftTitle('能力值分析', 112, 1655);
-  dims.forEach((dimension, index) => {
-    const y = 1704 + index * 29;
-    const value = currentStats[dimension] ?? 50;
-
-    context.textAlign = 'left';
-    context.fillStyle = '#244768';
-    context.font = `800 20px ${cuteFont}`;
-    context.fillText(labels[dimension], 112, y);
-
-    context.fillStyle = '#e8f0f5';
-    roundRect(context, 275, y - 16, 570, 18, 9);
-    context.fill();
-
-    context.fillStyle = theme[1];
-    roundRect(context, 275, y - 16, 570 * value / 100, 18, 9);
-    context.fill();
-
-    context.textAlign = 'right';
-    context.fillStyle = theme[1];
-    context.font = `900 20px ${cuteFont}`;
-    context.fillText(`${value}%`, 958, y);
-  });
-
-  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1));
-  if (!blob) {
-    toast('結果卡產生失敗，請稍後再試');
+  if (typeof window.html2canvas !== 'function') {
+    toast('下載元件仍在載入，請稍後再試一次');
     return;
   }
 
-  const downloadUrl = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = downloadUrl;
-  link.download = `TUN-大一命定人格-${current.name}.png`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(downloadUrl);
+  const app = document.querySelector('main.app');
+  const resultScreen = document.getElementById('result');
+  if (!app || !resultScreen) return;
 
-  trackEvent('result_download', {
-    personality_key: current.key,
-    personality_name: current.name
+  toast('正在製作高畫質結果卡…');
+
+  // v6.1.1：下載卡直接複製目前網頁結果頁。
+  // 網頁版改動會同步反映在下載圖片，不再維護另一套 Canvas 排版。
+  const captureRoot = document.createElement('div');
+  captureRoot.className = 'result-export-stage';
+  captureRoot.setAttribute('aria-hidden', 'true');
+
+  const clone = app.cloneNode(true);
+  clone.classList.add('result-export-clone');
+  clone.querySelectorAll('.screen').forEach(screen => {
+    screen.classList.toggle('hidden', screen.id !== 'result');
   });
 
-  toast('人格結果卡已下載');
-}
+  clone.querySelector('#result')?.classList.remove('hidden');
+  clone.querySelector('#result .actions')?.remove();
+  clone.querySelector('#result .note')?.remove();
 
-function roundRect(context, x, y, width, height, radius) {
-  const safeRadius = Math.min(radius, width / 2, height / 2);
-  context.beginPath();
-  context.moveTo(x + safeRadius, y);
-  context.arcTo(x + width, y, x + width, y + height, safeRadius);
-  context.arcTo(x + width, y + height, x, y + height, safeRadius);
-  context.arcTo(x, y + height, x, y, safeRadius);
-  context.arcTo(x, y, x + width, y, safeRadius);
-  context.closePath();
+  captureRoot.appendChild(clone);
+  document.body.appendChild(captureRoot);
+
+  try {
+    if (document.fonts?.ready) await document.fonts.ready;
+
+    const images = Array.from(clone.querySelectorAll('img'));
+    await Promise.all(images.map(image => {
+      if (image.complete && image.naturalWidth) return Promise.resolve();
+      return new Promise(resolve => {
+        image.onload = resolve;
+        image.onerror = resolve;
+      });
+    }));
+
+    const canvas = await window.html2canvas(clone, {
+      backgroundColor: '#ffffff',
+      scale: Math.min(3, Math.max(2, window.devicePixelRatio || 2)),
+      useCORS: true,
+      allowTaint: false,
+      logging: false,
+      width: clone.scrollWidth,
+      height: clone.scrollHeight,
+      windowWidth: 430,
+      scrollX: 0,
+      scrollY: 0,
+      onclone: clonedDocument => {
+        const clonedApp = clonedDocument.querySelector('.result-export-clone');
+        if (clonedApp) clonedApp.classList.add('is-exporting');
+      }
+    });
+
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1));
+    if (!blob) throw new Error('PNG export failed');
+
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `TUN-大一命定人格-${current.name}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(downloadUrl);
+
+    trackEvent('result_download', {
+      personality_key: current.key,
+      personality_name: current.name,
+      layout: 'shared_result_layout'
+    });
+  } catch (error) {
+    console.error(error);
+    toast('結果卡產生失敗，請重新整理後再試');
+  } finally {
+    captureRoot.remove();
+  }
 }
 
 function resetQuiz() {
