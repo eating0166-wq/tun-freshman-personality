@@ -1226,3 +1226,30 @@ body[data-screen="result"] #result{
   #result #desc,#result #skill{font-size:12px !important}
   #result .stat{grid-template-columns:66px 1fr 31px !important;font-size:10.5px !important}
 }
+
+
+/* v7.0.1：分析結果頁與下載頁使用同一張實際 PNG */
+#result #result-card.is-canvas-ready{
+  aspect-ratio:auto;
+  padding:0 !important;
+  overflow:hidden;
+  background:transparent;
+  border:0;
+  box-shadow:none;
+}
+#result #result-card.is-canvas-ready .card-inner{display:none !important}
+#result .canonical-result-image{
+  display:block;
+  width:100%;
+  height:auto;
+  border-radius:22px;
+  -webkit-touch-callout:default;
+  user-select:auto;
+}
+#result .canonical-result-image.hidden{display:none !important}
+.result-image-link{display:block;width:100%;text-decoration:none}
+.result-image-link img{cursor:zoom-in}
+@media (max-width:480px){
+  #result #result-card.is-canvas-ready{border-radius:18px}
+  #result .canonical-result-image{border-radius:18px}
+}

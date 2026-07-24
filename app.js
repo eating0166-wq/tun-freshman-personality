@@ -349,6 +349,7 @@ function renderResult(result, stats, updateUrl = false) {
   }
 
   show('result');
+  syncCanonicalResultImage();
   trackEvent('quiz_complete', {
     personality_key: result.key,
     personality_name: result.name
@@ -442,10 +443,15 @@ function wrapCanvasText(context, text, x, y, maxWidth, lineHeight, maxLines = 4)
 let generatedResultObjectURL = '';
 let generatedResultFilename = '';
 let generatedResultBlob = null;
+let canonicalResultObjectURL = '';
+let canonicalResultBlob = null;
+let canonicalResultFilename = '';
+let canonicalRenderToken = 0;
 
 function showGeneratedResultImage(blob, filename) {
   const page = document.getElementById('result-image-page');
   const image = document.getElementById('generated-result-image');
+  const imageLink = document.getElementById('generated-result-image-link');
   if (!page || !image) throw new Error('找不到結果圖片預覽區');
 
   if (generatedResultObjectURL) URL.revokeObjectURL(generatedResultObjectURL);
@@ -453,6 +459,10 @@ function showGeneratedResultImage(blob, filename) {
   generatedResultObjectURL = URL.createObjectURL(blob);
   generatedResultFilename = filename;
   image.src = generatedResultObjectURL;
+  if (imageLink) {
+    imageLink.href = generatedResultObjectURL;
+    imageLink.download = filename;
+  }
   page.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
   page.scrollTop = 0;
@@ -470,28 +480,34 @@ async function saveGeneratedResultImage() {
   }
 
   const filename = generatedResultFilename || 'TUN-大一命定人格.png';
-  const file = new File([generatedResultBlob], filename, { type: 'image/png' });
+  let shared = false;
 
-  // 手機優先開啟系統分享面板，iPhone 可從面板選擇「儲存影像」。
-  if (navigator.share && navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: filename });
-      return;
-    } catch (error) {
-      if (error?.name === 'AbortError') return;
+  try {
+    const file = new File([generatedResultBlob], filename, { type: 'image/png' });
+    if (navigator.share) {
+      try {
+        await navigator.share({ files: [file], title: filename, text: '我的大一命定人格分析結果' });
+        shared = true;
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+      }
     }
-  }
+  } catch (_) {}
 
-  // 桌機與支援 download 的瀏覽器直接下載。
+  if (shared) return;
+
+  // 桌機、Android 與支援 download 的瀏覽器。
   const link = document.createElement('a');
   link.href = generatedResultObjectURL;
   link.download = filename;
   link.rel = 'noopener';
+  link.style.display = 'none';
   document.body.appendChild(link);
   link.click();
-  link.remove();
+  window.setTimeout(() => link.remove(), 1000);
 
-  toast('若手機未自動下載，請直接長按上方圖片儲存');
+  // iPhone / App 內建瀏覽器若攔截下載，畫面上的原圖仍可直接長按儲存。
+  toast('若未自動下載，請長按上方圖片並選擇「儲存到照片」');
 }
 
 function measureCanvasLines(context, text, maxWidth) {
@@ -716,6 +732,46 @@ function roundRect(context, x, y, width, height, radius) {
   context.closePath();
 }
 
+
+async function createResultBlob() {
+  const canvas = await buildResultCanvas();
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(value => value ? resolve(value) : reject(new Error('圖片轉換失敗')), 'image/png', 1);
+  });
+}
+
+async function syncCanonicalResultImage() {
+  if (!current || !currentStats) return null;
+  const token = ++canonicalRenderToken;
+  const resultCard = document.getElementById('result-card');
+  const image = document.getElementById('canonical-result-image');
+  if (!resultCard || !image) return null;
+
+  resultCard.classList.remove('is-canvas-ready');
+  image.classList.add('hidden');
+
+  try {
+    await document.fonts?.ready;
+    const blob = await createResultBlob();
+    if (token !== canonicalRenderToken) return null;
+
+    if (canonicalResultObjectURL) URL.revokeObjectURL(canonicalResultObjectURL);
+    canonicalResultBlob = blob;
+    canonicalResultFilename = `TUN-大一命定人格-${current.name}.png`;
+    canonicalResultObjectURL = URL.createObjectURL(blob);
+    image.src = canonicalResultObjectURL;
+    image.alt = `${current.name}｜大一命定人格分析結果`;
+    image.classList.remove('hidden');
+    resultCard.classList.add('is-canvas-ready');
+    return blob;
+  } catch (error) {
+    console.error('syncCanonicalResultImage failed:', error);
+    resultCard.classList.remove('is-canvas-ready');
+    image.classList.add('hidden');
+    return null;
+  }
+}
+
 async function downloadResultCard() {
   const button = document.querySelector('#result .download-result');
   if (!current || !currentStats) {
@@ -731,12 +787,8 @@ async function downloadResultCard() {
 
   try {
     await document.fonts?.ready;
-    const canvas = await buildResultCanvas();
-    const blob = await new Promise((resolve, reject) => {
-      canvas.toBlob(value => value ? resolve(value) : reject(new Error('圖片轉換失敗')), 'image/png', 1);
-    });
-
-    const filename = `TUN-大一命定人格-${current.name}.png`;
+    const blob = canonicalResultBlob || await syncCanonicalResultImage() || await createResultBlob();
+    const filename = canonicalResultFilename || `TUN-大一命定人格-${current.name}.png`;
     showGeneratedResultImage(blob, filename);
 
     // 桌機瀏覽器直接下載；手機保留站內預覽，方便長按儲存或使用系統分享。
