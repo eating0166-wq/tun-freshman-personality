@@ -441,157 +441,142 @@ function wrapCanvasText(context, text, x, y, maxWidth, lineHeight, maxLines = 4)
 async function downloadResultCard() {
   if (!current || !currentStats) return;
 
+  // v6.1: output uses the same tall mobile-card proportions and hierarchy
+  // as the on-page result instead of the previous compressed 4:5 poster.
   const canvas = document.createElement('canvas');
   canvas.width = 1080;
-  canvas.height = 1350;
+  canvas.height = 1920;
 
   const context = canvas.getContext('2d');
   const theme = resultThemes[current.key] || ['✨', '#4f8edc', '#f2f8ff', '#b9d4f3'];
   const cuteFont = '"Arial Rounded MT Bold","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
 
-  // Page background and the same paper-card treatment used by the result page.
-  context.fillStyle = '#eef8ff';
-  context.fillRect(0, 0, canvas.width, canvas.height);
-
+  // Same white result card and pale outline used on the website.
   context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
   context.strokeStyle = theme[3];
-  context.lineWidth = 4;
-  roundRect(context, 48, 34, 984, 1282, 42);
-  context.fill();
+  context.lineWidth = 5;
+  roundRect(context, 36, 28, 1008, 1860, 38);
   context.stroke();
 
   context.save();
-  context.setLineDash([10, 9]);
+  context.setLineDash([11, 9]);
   context.strokeStyle = theme[3];
   context.lineWidth = 2;
-  roundRect(context, 68, 54, 944, 1242, 30);
+  roundRect(context, 58, 50, 964, 1816, 28);
   context.stroke();
   context.restore();
 
-  // Original header logo: same wording, colors and top-left placement as the website.
+  // Original TUN logo placement and colors.
   context.textAlign = 'left';
   context.textBaseline = 'alphabetic';
-  context.font = `italic 950 35px ${cuteFont}`;
+  context.font = `italic 950 38px ${cuteFont}`;
   context.fillStyle = '#17a8c2';
-  context.fillText('TUN', 92, 108);
+  context.fillText('TUN', 82, 112);
   const tunWidth = context.measureText('TUN').width;
-  context.font = `950 31px ${cuteFont}`;
+  context.font = `950 33px ${cuteFont}`;
   context.fillStyle = '#172f51';
-  context.fillText('大學網', 102 + tunWidth, 108);
+  context.fillText('大學網', 92 + tunWidth, 112);
 
-  // Personality title: same centered sticker-like hierarchy as the result page.
+  // Result title: same centered, accent-colored hierarchy as the result page.
   context.textAlign = 'center';
-  context.lineJoin = 'round';
-  context.font = `900 70px ${cuteFont}`;
-  context.strokeStyle = '#fff7e8';
-  context.lineWidth = 13;
-  context.strokeText(current.name, 540, 184);
-  context.fillStyle = '#18355f';
-  context.fillText(current.name, 540, 184);
+  context.font = `900 82px ${cuteFont}`;
+  context.fillStyle = theme[1];
+  context.fillText(current.name, 540, 230);
 
-  // Character image.
+  // Character image with the same dominant visual proportion as the page.
   try {
     const image = await loadImage(resultImages[current.key] || IMG);
-    const box = { x: 170, y: 208, width: 740, height: 310 };
+    const box = { x: 95, y: 280, width: 890, height: 520 };
     const ratio = Math.min(box.width / image.width, box.height / image.height);
     const width = image.width * ratio;
     const height = image.height * ratio;
-    context.drawImage(
-      image,
-      box.x + (box.width - width) / 2,
-      box.y + (box.height - height) / 2,
-      width,
-      height
-    );
+    context.drawImage(image, box.x + (box.width - width) / 2, box.y + (box.height - height) / 2, width, height);
   } catch (_) {
     context.fillStyle = theme[2];
-    roundRect(context, 170, 208, 740, 310, 28);
+    roundRect(context, 95, 280, 890, 520, 26);
     context.fill();
   }
-
-  const drawSectionTitle = (title, centerX, y) => {
-    context.textAlign = 'center';
-    context.font = `900 32px ${cuteFont}`;
-    context.strokeStyle = '#fff7e8';
-    context.lineWidth = 7;
-    context.strokeText(title, centerX, y);
-    context.fillStyle = '#18355f';
-    context.fillText(title, centerX, y);
-  };
 
   const drawPanel = (x, y, width, height) => {
     context.fillStyle = '#ffffff';
     context.strokeStyle = theme[3];
-    context.lineWidth = 2.5;
-    roundRect(context, x, y, width, height, 22);
+    context.lineWidth = 3;
+    roundRect(context, x, y, width, height, 24);
     context.fill();
     context.stroke();
   };
 
-  // Tags panel.
-  drawPanel(92, 530, 896, 142);
-  drawSectionTitle('代表標籤', 540, 574);
-  context.font = `700 25px ${cuteFont}`;
-  context.textAlign = 'center';
-  const tagCenters = [250, 455, 660, 865];
-  current.hashtags.slice(0, 4).forEach((tag, index) => {
-    const width = Math.min(188, context.measureText(tag).width + 38);
-    const x = tagCenters[index] - width / 2;
-    context.fillStyle = theme[2];
+  const drawLeftTitle = (title, x, y) => {
+    context.textAlign = 'left';
+    context.font = `900 39px ${cuteFont}`;
+    context.fillStyle = theme[1];
+    context.fillText(title, x, y);
+  };
+
+  // Tags section.
+  drawPanel(76, 820, 928, 220);
+  drawLeftTitle('代表標籤', 112, 885);
+  context.font = `800 27px ${cuteFont}`;
+  context.textAlign = 'left';
+  let tagX = 112;
+  let tagY = 930;
+  current.hashtags.slice(0, 4).forEach(tag => {
+    const tagWidth = Math.min(250, context.measureText(tag).width + 46);
+    if (tagX + tagWidth > 965) { tagX = 112; tagY += 68; }
+    context.fillStyle = '#ffffff';
     context.strokeStyle = theme[3];
-    context.lineWidth = 2;
-    roundRect(context, x, 603, width, 44, 22);
+    context.lineWidth = 2.5;
+    roundRect(context, tagX, tagY, tagWidth, 52, 16);
     context.fill();
     context.stroke();
-    context.fillStyle = '#294c72';
-    context.fillText(tag, tagCenters[index], 633);
+    context.fillStyle = theme[1];
+    context.fillText(tag, tagX + 22, tagY + 36);
+    tagX += tagWidth + 18;
   });
 
-  // Description panel.
-  drawPanel(92, 692, 896, 176);
-  drawSectionTitle('人格說明', 540, 737);
+  // Personality description.
+  drawPanel(76, 1060, 928, 255);
+  drawLeftTitle('人格說明', 112, 1128);
   context.textAlign = 'left';
-  context.fillStyle = '#21384c';
-  context.font = `400 27px ${cuteFont}`;
-  wrapCanvasText(context, current.desc, 128, 786, 824, 39, 3);
+  context.fillStyle = '#17375e';
+  context.font = `400 31px ${cuteFont}`;
+  wrapCanvasText(context, current.desc, 112, 1184, 850, 48, 3);
 
-  // Reminder panel.
-  drawPanel(92, 888, 896, 145);
-  drawSectionTitle('開學小提醒', 540, 933);
-  context.textAlign = 'left';
-  context.fillStyle = '#21384c';
-  context.font = `400 26px ${cuteFont}`;
-  wrapCanvasText(context, current.skill, 128, 982, 824, 37, 2);
+  // Freshman reminder.
+  drawPanel(76, 1335, 928, 235);
+  drawLeftTitle('開學小提醒', 112, 1403);
+  context.fillStyle = '#17375e';
+  context.font = `400 31px ${cuteFont}`;
+  wrapCanvasText(context, current.skill, 112, 1459, 850, 48, 3);
 
-  // Stats panel.
-  drawPanel(92, 1053, 896, 213);
-  drawSectionTitle('能力值分析', 540, 1098);
-
+  // Stats block.
+  drawPanel(76, 1590, 928, 250);
+  drawLeftTitle('能力值分析', 112, 1655);
   dims.forEach((dimension, index) => {
-    const y = 1137 + index * 27;
+    const y = 1704 + index * 29;
     const value = currentStats[dimension] ?? 50;
 
     context.textAlign = 'left';
-    context.fillStyle = '#4a6478';
-    context.font = `700 18px ${cuteFont}`;
-    context.fillText(labels[dimension], 126, y);
+    context.fillStyle = '#244768';
+    context.font = `800 20px ${cuteFont}`;
+    context.fillText(labels[dimension], 112, y);
 
     context.fillStyle = '#e8f0f5';
-    roundRect(context, 280, y - 14, 548, 17, 9);
+    roundRect(context, 275, y - 16, 570, 18, 9);
     context.fill();
 
     context.fillStyle = theme[1];
-    roundRect(context, 280, y - 14, 548 * value / 100, 17, 9);
+    roundRect(context, 275, y - 16, 570 * value / 100, 18, 9);
     context.fill();
 
     context.textAlign = 'right';
     context.fillStyle = theme[1];
-    context.font = `800 18px ${cuteFont}`;
-    context.fillText(`${value}%`, 952, y);
+    context.font = `900 20px ${cuteFont}`;
+    context.fillText(`${value}%`, 958, y);
   });
 
-  // Intentionally no URL/footer: the card ends exactly after the stats block.
-  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1));
   if (!blob) {
     toast('結果卡產生失敗，請稍後再試');
     return;
