@@ -931,41 +931,37 @@ main,
   height:10px !important;
 }
 
-/* 隱藏在畫面外的輸出舞台：複製真正的網頁結果頁後截圖 */
+/* 隱藏在畫面外的輸出舞台：完整複製使用者當下看到的結果頁 */
 .result-export-stage{
   position:fixed;
-  left:-10000px;
+  left:-20000px;
   top:0;
-  width:430px;
   z-index:-9999;
   pointer-events:none;
   background:#fff;
+  overflow:visible;
 }
 
 .result-export-clone{
-  width:430px !important;
-  max-width:430px !important;
   min-height:0 !important;
   margin:0 !important;
-  padding-bottom:18px !important;
   background:#fff !important;
   overflow:visible !important;
+  box-shadow:none !important;
 }
 
 .result-export-clone .screen{
   width:100% !important;
   max-width:100% !important;
-  padding-left:14px !important;
-  padding-right:14px !important;
 }
 
-.result-export-clone #result,
-.result-export-clone section:last-of-type{
+.result-export-clone #result{
   display:block !important;
 }
 
 .result-export-clone .card{
-  box-shadow:none !important;
+  height:auto !important;
+  min-height:0 !important;
   overflow:visible !important;
 }
 

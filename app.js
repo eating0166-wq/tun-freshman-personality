@@ -442,7 +442,7 @@ async function downloadResultCard() {
   if (!current || !currentStats) return;
 
   if (typeof window.html2canvas !== 'function') {
-    toast('下載元件仍在載入，請稍後再試一次');
+    toast('下載元件載入失敗，請確認網路後重新整理');
     return;
   }
 
@@ -450,20 +450,30 @@ async function downloadResultCard() {
   const resultScreen = document.getElementById('result');
   if (!app || !resultScreen) return;
 
+  const downloadButton = document.querySelector('#result .download-result');
+  const originalButtonText = downloadButton?.textContent || '';
+  if (downloadButton) {
+    downloadButton.disabled = true;
+    downloadButton.textContent = '正在產生結果卡…';
+  }
   toast('正在製作高畫質結果卡…');
 
-  // v6.1.1：下載卡直接複製目前網頁結果頁。
-  // 網頁版改動會同步反映在下載圖片，不再維護另一套 Canvas 排版。
+  // 直接複製「目前畫面上的完整結果頁」，並沿用當下手機／桌機寬度。
+  // 不再使用固定 430px 版型，確保下載圖與使用者看到的頁面一致。
+  const liveWidth = Math.max(320, Math.round(app.getBoundingClientRect().width));
   const captureRoot = document.createElement('div');
   captureRoot.className = 'result-export-stage';
   captureRoot.setAttribute('aria-hidden', 'true');
+  captureRoot.style.width = `${liveWidth}px`;
 
   const clone = app.cloneNode(true);
-  clone.classList.add('result-export-clone');
+  clone.classList.add('result-export-clone', 'is-exporting');
+  clone.style.width = `${liveWidth}px`;
+  clone.style.maxWidth = `${liveWidth}px`;
+
   clone.querySelectorAll('.screen').forEach(screen => {
     screen.classList.toggle('hidden', screen.id !== 'result');
   });
-
   clone.querySelector('#result')?.classList.remove('hidden');
   clone.querySelector('#result .actions')?.remove();
   clone.querySelector('#result .note')?.remove();
@@ -483,45 +493,67 @@ async function downloadResultCard() {
       });
     }));
 
+    // 等待 clone 完成一次排版，避免手機輸出時截到尚未撐開的卡片高度。
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    const captureHeight = Math.ceil(clone.scrollHeight);
     const canvas = await window.html2canvas(clone, {
       backgroundColor: '#ffffff',
       scale: Math.min(3, Math.max(2, window.devicePixelRatio || 2)),
       useCORS: true,
       allowTaint: false,
       logging: false,
-      width: clone.scrollWidth,
-      height: clone.scrollHeight,
-      windowWidth: 430,
+      width: liveWidth,
+      height: captureHeight,
+      windowWidth: Math.max(liveWidth, document.documentElement.clientWidth),
+      windowHeight: Math.max(captureHeight, window.innerHeight),
       scrollX: 0,
-      scrollY: 0,
-      onclone: clonedDocument => {
-        const clonedApp = clonedDocument.querySelector('.result-export-clone');
-        if (clonedApp) clonedApp.classList.add('is-exporting');
-      }
+      scrollY: 0
     });
 
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png', 1));
     if (!blob) throw new Error('PNG export failed');
 
+    const filename = `TUN-大一命定人格-${current.name}.png`;
     const downloadUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.download = `TUN-大一命定人格-${current.name}.png`;
+    link.download = filename;
+    link.rel = 'noopener';
+    link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
     link.remove();
-    URL.revokeObjectURL(downloadUrl);
+
+    // iOS 對 download 屬性支援不一致；若沒有觸發下載，開啟圖片供長按儲存。
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isIOS) {
+      window.setTimeout(() => {
+        const preview = window.open(downloadUrl, '_blank', 'noopener');
+        if (preview) toast('圖片已開啟，請長按選擇「儲存到照片」');
+      }, 450);
+    } else {
+      toast('結果卡已下載');
+    }
+
+    // 延後釋放，避免手機瀏覽器尚未讀取完就失效。
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 60000);
 
     trackEvent('result_download', {
       personality_key: current.key,
       personality_name: current.name,
-      layout: 'shared_result_layout'
+      layout: 'live_result_layout_v612'
     });
   } catch (error) {
     console.error(error);
     toast('結果卡產生失敗，請重新整理後再試');
   } finally {
     captureRoot.remove();
+    if (downloadButton) {
+      downloadButton.disabled = false;
+      downloadButton.textContent = originalButtonText;
+    }
   }
 }
 
