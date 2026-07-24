@@ -438,17 +438,74 @@ function wrapCanvasText(context, text, x, y, maxWidth, lineHeight, maxLines = 4)
   });
 }
 
+async function ensureHtml2Canvas() {
+  if (typeof window.html2canvas === 'function') return window.html2canvas;
+
+  const sources = [
+    'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+    'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js'
+  ];
+
+  for (const src of sources) {
+    try {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = () => reject(new Error(`無法載入 ${src}`));
+        document.head.appendChild(script);
+      });
+      if (typeof window.html2canvas === 'function') return window.html2canvas;
+    } catch (error) {
+      console.warn(error);
+    }
+  }
+
+  throw new Error('截圖工具載入失敗，請確認網路後重新整理');
+}
+
+let generatedResultObjectURL = '';
+let generatedResultFilename = '';
+
+function showGeneratedResultImage(blob, filename) {
+  const page = document.getElementById('result-image-page');
+  const image = document.getElementById('generated-result-image');
+  if (!page || !image) throw new Error('找不到結果圖片預覽區');
+
+  if (generatedResultObjectURL) URL.revokeObjectURL(generatedResultObjectURL);
+  generatedResultObjectURL = URL.createObjectURL(blob);
+  generatedResultFilename = filename;
+  image.src = generatedResultObjectURL;
+  page.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  page.scrollTop = 0;
+}
+
+function closeGeneratedResultImage() {
+  document.getElementById('result-image-page')?.classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function saveGeneratedResultImage() {
+  if (!generatedResultObjectURL) {
+    toast('請先產生分析卡片');
+    return;
+  }
+  const link = document.createElement('a');
+  link.href = generatedResultObjectURL;
+  link.download = generatedResultFilename || 'TUN-大一命定人格.png';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
 async function downloadResultCard() {
   const cardElement = document.getElementById('result-card');
   const button = document.querySelector('#result .download-result');
 
   if (!cardElement || !current || !currentStats) {
     toast('找不到人格結果，請重新測驗');
-    return;
-  }
-
-  if (typeof window.html2canvas !== 'function') {
-    toast('下載工具尚未載入，請重新整理後再試');
     return;
   }
 
@@ -459,6 +516,7 @@ async function downloadResultCard() {
   }
 
   try {
+    const html2canvas = await ensureHtml2Canvas();
     await document.fonts?.ready;
 
     const images = Array.from(cardElement.querySelectorAll('img'));
@@ -470,12 +528,11 @@ async function downloadResultCard() {
       });
     }));
 
-    // 直接截取目前畫面上的分析結果卡，因此手機版與網頁版呈現會完全同步。
-    const canvas = await window.html2canvas(cardElement, {
+    const canvas = await html2canvas(cardElement, {
       scale: Math.min(Math.max(window.devicePixelRatio || 1, 2), 3),
       useCORS: true,
       allowTaint: false,
-      backgroundColor: null,
+      backgroundColor: '#ffffff',
       logging: false,
       imageTimeout: 15000,
       scrollX: 0,
@@ -486,6 +543,8 @@ async function downloadResultCard() {
         if (clonedCard) {
           clonedCard.style.transform = 'none';
           clonedCard.style.margin = '0';
+          clonedCard.style.height = 'auto';
+          clonedCard.style.overflow = 'visible';
         }
       }
     });
@@ -495,38 +554,13 @@ async function downloadResultCard() {
     });
 
     const filename = `TUN-大一命定人格-${current.name}.png`;
-    const file = new File([blob], filename, { type: 'image/png' });
-
-    // 手機瀏覽器優先使用原生分享／儲存面板，成功率比模擬連結更高。
-    if (navigator.canShare?.({ files: [file] }) && navigator.share) {
-      try {
-        await navigator.share({
-          files: [file],
-          title: `我的大一命定人格是「${current.name}」`,
-          text: 'TUN 大一命定人格測驗結果'
-        });
-        toast('結果卡已產生');
-      } catch (shareError) {
-        if (shareError?.name === 'AbortError') return;
-        throw shareError;
-      }
-    } else {
-      const imageURL = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = imageURL;
-      link.download = filename;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(imageURL), 60000);
-      toast('結果卡已下載');
-    }
+    showGeneratedResultImage(blob, filename);
+    toast('結果卡已產生，可長按圖片儲存');
 
     trackEvent('result_download', {
       personality_key: current.key,
       personality_name: current.name,
-      layout: 'dom_html2canvas_v615'
+      layout: 'dom_preview_v616'
     });
   } catch (error) {
     console.error('downloadResultCard failed:', error);
@@ -538,6 +572,15 @@ async function downloadResultCard() {
     }
   }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('close-result-image')?.addEventListener('click', closeGeneratedResultImage);
+  document.getElementById('save-result-image')?.addEventListener('click', saveGeneratedResultImage);
+  document.getElementById('retry-from-image')?.addEventListener('click', () => {
+    closeGeneratedResultImage();
+    resetQuiz();
+  });
+});
 
 function resetQuiz() {
   if (calculationTimer) {

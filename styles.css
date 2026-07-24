@@ -1016,3 +1016,62 @@ main,
     font-size:14px !important;
   }
 }
+
+
+/* v6.1.6：結果圖片預覽／手機長按儲存 */
+.result-image-page{
+  position:fixed;
+  inset:0;
+  z-index:10000;
+  overflow:auto;
+  background:#f8f9fa;
+  -webkit-overflow-scrolling:touch;
+}
+.result-image-page.hidden{display:none !important}
+.page-container.result-image-container{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  min-height:100%;
+  padding:20px;
+  background:#f8f9fa;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  box-sizing:border-box;
+}
+.result-image-toolbar{width:100%;max-width:400px;margin-bottom:12px}
+.image-close-btn{
+  border:0;
+  background:transparent;
+  color:#1f4c7a;
+  font-size:15px;
+  font-weight:700;
+  padding:8px 0;
+  cursor:pointer;
+}
+.result-card-wrapper{
+  width:100%;
+  max-width:400px;
+  border-radius:20px;
+  overflow:hidden;
+  box-shadow:0 10px 25px rgba(0,0,0,.1);
+  margin-bottom:16px;
+  background:#fff;
+}
+.result-image{width:100%;height:auto;display:block;-webkit-touch-callout:default;user-select:auto}
+.tip-text{font-size:14px;color:#6b7280;margin:0 0 16px;text-align:center;line-height:1.6;max-width:400px}
+.download-btn,.retry-btn{
+  width:100%;
+  max-width:400px;
+  border:none;
+  border-radius:12px;
+  padding:14px;
+  font-size:16px;
+  font-weight:700;
+  cursor:pointer;
+}
+.download-btn{background:#111827;color:#fff;margin-bottom:10px}
+.download-btn:active{background:#374151}
+.retry-btn{background:#fbbf24;color:#111827}
+@media(max-width:480px){
+  .page-container.result-image-container{padding:16px}
+}
