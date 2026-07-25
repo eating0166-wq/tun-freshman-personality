@@ -290,8 +290,8 @@ function calculate() {
   renderResult(current, currentStats, true);
 }
 
-function stripEndingPunctuation(text = '') {
-  return String(text).replace(/[。．.!！?？]+\s*$/u, '').trim();
+function stripEndingPunctuation(text) {
+  return String(text || '').replace(/[。．.!！?？]+$/u, '').trim();
 }
 
 function renderResult(result, stats, updateUrl = false) {
@@ -420,28 +420,6 @@ function loadImage(source) {
   });
 }
 
-function wrapCanvasText(context, text, x, y, maxWidth, lineHeight, maxLines = 4) {
-  const characters = Array.from(text);
-  const lines = [];
-  let line = '';
-
-  characters.forEach(character => {
-    const test = line + character;
-    if (context.measureText(test).width > maxWidth && line) {
-      lines.push(line);
-      line = character;
-    } else {
-      line = test;
-    }
-  });
-
-  if (line) lines.push(line);
-
-  lines.slice(0, maxLines).forEach((content, index) => {
-    context.fillText(content, x, y + index * lineHeight);
-  });
-}
-
 let generatedResultObjectURL = '';
 let generatedResultFilename = '';
 let generatedResultBlob = null;
@@ -517,6 +495,60 @@ function measureCanvasLines(context, text, maxWidth) {
 async function buildResultCanvas() {
   if (!current || !currentStats) throw new Error('找不到人格結果');
 
+  const card = document.getElementById('result-card');
+  if (!card) throw new Error('找不到分析結果卡片');
+
+  await document.fonts?.ready;
+  await Promise.all(
+    Array.from(card.querySelectorAll('img')).map(image => {
+      if (image.complete && image.naturalWidth > 0) return Promise.resolve();
+      return new Promise(resolve => {
+        image.addEventListener('load', resolve, { once: true });
+        image.addEventListener('error', resolve, { once: true });
+      });
+    })
+  );
+
+  if (typeof window.html2canvas !== 'function') {
+    return buildLegacyResultCanvas();
+  }
+
+  const cardRect = card.getBoundingClientRect();
+  const scale = Math.min(3, Math.max(2, 1080 / Math.max(cardRect.width, 1)));
+
+  return window.html2canvas(card, {
+    backgroundColor: null,
+    scale,
+    useCORS: true,
+    allowTaint: false,
+    logging: false,
+    imageTimeout: 12000,
+    scrollX: 0,
+    scrollY: -window.scrollY,
+    width: Math.ceil(cardRect.width),
+    height: Math.ceil(card.scrollHeight),
+    windowWidth: document.documentElement.clientWidth,
+    windowHeight: document.documentElement.clientHeight,
+    onclone: clonedDocument => {
+      const clonedCard = clonedDocument.getElementById('result-card');
+      if (!clonedCard) return;
+      clonedCard.style.width = `${cardRect.width}px`;
+      clonedCard.style.maxWidth = 'none';
+      clonedCard.style.height = 'auto';
+      clonedCard.style.minHeight = '0';
+      clonedCard.style.margin = '0';
+      clonedCard.style.transform = 'none';
+      clonedCard.querySelectorAll('*').forEach(element => {
+        element.style.animation = 'none';
+        element.style.transition = 'none';
+      });
+    }
+  });
+}
+
+async function buildLegacyResultCanvas() {
+  if (!current || !currentStats) throw new Error('找不到人格結果');
+
   await document.fonts?.ready;
 
   const theme = resultThemes[current.key] || ['✨', '#4f8edc', '#f2f8ff', '#b9d4f3'];
@@ -536,7 +568,7 @@ async function buildResultCanvas() {
   const panelWidth = 916;
   const contentX = 112;
   const contentWidth = 856;
-  const panelGap = 14;
+  const panelGap = 18;
   const chineseFont = '"Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif';
 
   // 先用測量畫布計算所有區塊高度，避免固定高度造成底部大面積留白。
@@ -563,21 +595,22 @@ async function buildResultCanvas() {
   const measurePanel = (text) => {
     measureCtx.font = `400 29px ${chineseFont}`;
     const lines = measureCanvasLines(measureCtx, text, contentWidth);
-    const lineHeight = 42;
+    const lineHeight = 38;
     return {
       lines,
-      lineHeight,
-      height: 60 + lines.length * lineHeight
+      height: 58 + lines.length * lineHeight + 18
     };
   };
 
-  const descPanel = measurePanel(stripEndingPunctuation(current.desc));
-  const skillPanel = measurePanel(stripEndingPunctuation(current.skill));
-  const tagsHeight = 60 + tagRows.length * 48 + 12;
-  const statsHeight = 244;
-  const panelsStartY = 760;
+  const descText = stripEndingPunctuation(current.desc);
+  const skillText = stripEndingPunctuation(current.skill);
+  const descPanel = measurePanel(descText);
+  const skillPanel = measurePanel(skillText);
+  const tagsHeight = 62 + tagRows.length * 48 + 14;
+  const statsHeight = 242;
+  const panelsStartY = 690;
   const contentBottom = panelsStartY + tagsHeight + panelGap + descPanel.height + panelGap + skillPanel.height + panelGap + statsHeight;
-  const canvasHeight = Math.max(1480, Math.ceil(contentBottom + 64));
+  const canvasHeight = Math.max(1320, Math.ceil(contentBottom + 54));
 
   const canvas = document.createElement('canvas');
   canvas.width = canvasWidth;
@@ -604,18 +637,17 @@ async function buildResultCanvas() {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // 品牌 Logo：TUN 與「大學網」採相同視覺高度、斜體與緊密比例。
+  // 品牌 Logo：TUN 與大學網使用相同字級與斜體，保留雙色識別。
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   const logoX = 92;
-  const logoY = 106;
-  ctx.font = 'italic 900 39px "Arial Black", Arial, sans-serif';
+  const logoY = 100;
+  ctx.font = `italic 900 34px ${chineseFont}`;
   ctx.fillStyle = '#11a7bf';
   ctx.fillText('TUN', logoX, logoY);
   const tunWidth = ctx.measureText('TUN').width;
-  ctx.font = `italic 900 32px ${chineseFont}`;
   ctx.fillStyle = '#173b67';
-  ctx.fillText('大學網', logoX + tunWidth + 1, logoY - 1);
+  ctx.fillText('大學網', logoX + tunWidth + 7, logoY);
 
   const pillX = 790;
   const pillY = 61;
@@ -635,17 +667,17 @@ async function buildResultCanvas() {
   ctx.textAlign = 'center';
   ctx.font = `900 68px ${chineseFont}`;
   ctx.fillStyle = accent;
-  ctx.fillText(current.name, 540, 222);
+  ctx.fillText(current.name, 540, 205);
 
   try {
     const image = await loadImage(resultImages[current.key] || IMG);
-    const box = { x: 128, y: 245, width: 824, height: 500 };
+    const box = { x: 150, y: 218, width: 780, height: 440 };
     const ratio = Math.min(box.width / image.width, box.height / image.height);
     const width = image.width * ratio;
     const height = image.height * ratio;
     ctx.drawImage(image, box.x + (box.width - width) / 2, box.y + (box.height - height) / 2, width, height);
   } catch (error) {
-    console.warn('結果圖片載入失敗', error);
+    trackEvent('result_image_load_error', { message: String(error?.message || 'unknown') });
   }
 
   let y = panelsStartY;
@@ -664,11 +696,11 @@ async function buildResultCanvas() {
     ctx.textAlign = 'left';
     ctx.fillStyle = accent;
     ctx.font = `900 34px ${chineseFont}`;
-    ctx.fillText(title, contentX, y + 46);
+    ctx.fillText(title, contentX, y + 42);
 
     ctx.fillStyle = '#183b64';
     ctx.font = `400 29px ${chineseFont}`;
-    panel.lines.forEach((line, index) => ctx.fillText(line, contentX, y + 82 + index * panel.lineHeight));
+    panel.lines.forEach((line, index) => ctx.fillText(line, contentX, y + 78 + index * 38));
     y += panel.height + panelGap;
   };
 
@@ -676,9 +708,9 @@ async function buildResultCanvas() {
   ctx.textAlign = 'left';
   ctx.fillStyle = accent;
   ctx.font = `900 34px ${chineseFont}`;
-  ctx.fillText('代表標籤', contentX, y + 46);
+  ctx.fillText('代表標籤', contentX, y + 42);
 
-  let tagY = y + 56;
+  let tagY = y + 68;
   tagRows.forEach((row) => {
     let tagX = contentX;
     row.forEach((item) => {
@@ -704,10 +736,10 @@ async function buildResultCanvas() {
   ctx.textAlign = 'left';
   ctx.fillStyle = accent;
   ctx.font = `900 34px ${chineseFont}`;
-  ctx.fillText('能力值分析', contentX, y + 46);
+  ctx.fillText('能力值分析', contentX, y + 42);
 
   dims.forEach((dimension, index) => {
-    const lineY = y + 82 + index * 34;
+    const lineY = y + 78 + index * 34;
     const value = currentStats[dimension] ?? 50;
     const statColor = statColors[dimension] || accent;
 
@@ -785,10 +817,10 @@ async function downloadResultCard() {
     trackEvent('result_download', {
       personality_key: current.key,
       personality_name: current.name,
-      layout: 'v618_result_structure_sync_v619'
+      layout: 'v6.1.12_same_as_result_card'
     });
   } catch (error) {
-    console.error('downloadResultCard failed:', error);
+    trackEvent('result_download_error', { message: String(error?.message || 'unknown') });
     toast(`結果卡產生失敗：${error?.message || '請重新整理後再試'}`);
   } finally {
     if (button) {
@@ -797,15 +829,6 @@ async function downloadResultCard() {
     }
   }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('close-result-image')?.addEventListener('click', closeGeneratedResultImage);
-  document.getElementById('save-result-image')?.addEventListener('click', saveGeneratedResultImage);
-  document.getElementById('retry-from-image')?.addEventListener('click', () => {
-    closeGeneratedResultImage();
-    resetQuiz();
-  });
-});
 
 function resetQuiz() {
   if (calculationTimer) {
@@ -889,6 +912,8 @@ function toast(message) {
 }
 
 function initializeApp() {
+  document.getElementById('close-result-image')?.addEventListener('click', closeGeneratedResultImage);
+  document.getElementById('save-result-image')?.addEventListener('click', saveGeneratedResultImage);
   render();
   update();
   setupDebugMode();

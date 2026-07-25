@@ -875,19 +875,10 @@ main,
 #result .result-tags-panel .section-title,
 #result .result-analysis .section-title,
 #result .result-analysis .stats-title{
-  margin:0 0 7px !important;
+  margin:0 0 9px !important;
   font-size:20px !important;
   line-height:1.2 !important;
   text-align:left !important;
-}
-
-
-#result .result-tags-panel .section-title{
-  margin-bottom:0 !important;
-}
-
-#result .result-tags-panel .tags{
-  margin-top:0 !important;
 }
 
 #result .result-tags-panel .tags{
@@ -910,7 +901,7 @@ main,
 #result #skill{
   margin:0 !important;
   font-size:15px !important;
-  line-height:1.55 !important;
+  line-height:1.72 !important;
   color:#17375e !important;
   overflow-wrap:anywhere;
 }
@@ -1067,20 +1058,93 @@ main,
   background:#fff;
 }
 .result-image{width:100%;height:auto;display:block;-webkit-touch-callout:default;user-select:auto}
-.tip-text{font-size:14px;color:#6b7280;margin:0 0 16px;text-align:center;line-height:1.6;max-width:400px}
 .download-btn,.retry-btn{
   width:100%;
   max-width:400px;
-  border:none;
+  min-height:50px;
   border-radius:12px;
-  padding:14px;
+  padding:12px 14px;
   font-size:16px;
   font-weight:700;
   cursor:pointer;
 }
-.download-btn{background:#111827;color:#fff;margin-bottom:10px}
+.download-btn{border:1px solid #111827;background:#111827;color:#fff;margin-bottom:10px}
 .download-btn:active{background:#374151}
-.retry-btn{background:#fbbf24;color:#111827}
+.retry-btn{border:2px solid #f2b800;background:#fff;color:#8a6500}
+.retry-btn:active{background:#fff8d9}
 @media(max-width:480px){
   .page-container.result-image-container{padding:16px}
+}
+
+
+/* v6.1.11：結果頁與下載卡排版精簡 */
+#result .card h3.sticker-title{
+  margin-bottom:4px !important;
+}
+#result .result-hero{
+  height:220px !important;
+  margin:0 auto 8px !important;
+}
+#result .result-tags-panel,
+#result .result-analysis .box{
+  padding:10px 12px !important;
+}
+#result .result-analysis{
+  gap:12px !important;
+  margin-top:12px !important;
+}
+#result .result-tags-panel{
+  margin-top:0 !important;
+}
+#result .result-tags-panel .section-title,
+#result .result-analysis .section-title,
+#result .result-analysis .stats-title{
+  margin-bottom:7px !important;
+}
+#result #desc,
+#result #skill{
+  margin-bottom:0 !important;
+}
+#result .actions .retry-action{
+  border:2px solid #f2b800 !important;
+  background:#fff !important;
+  color:#8a6500 !important;
+}
+.page-container.result-image-container{
+  padding-top:14px;
+  padding-bottom:18px;
+}
+.result-card-wrapper{
+  margin-bottom:12px;
+}
+@media(max-width:390px){
+  #result .result-hero{height:205px !important}
+}
+
+
+/* v6.1.12：分析結果頁／下載分析頁使用同一張人格卡 */
+.result-image-hint{
+  width:100%;
+  max-width:400px;
+  margin:0 0 12px;
+  color:#52667d;
+  font-size:13px;
+  font-weight:700;
+  line-height:1.6;
+  text-align:center;
+}
+.result-card-wrapper{
+  max-width:430px;
+  border-radius:20px;
+}
+.result-image-toolbar,
+.download-btn,
+.result-image-hint{
+  max-width:430px;
+}
+/* 下載頁只負責預覽與儲存，不再另外建立縮小版卡片樣式。 */
+.result-image{
+  width:100%;
+  height:auto;
+  object-fit:contain;
 }
