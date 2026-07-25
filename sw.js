@@ -1,4 +1,4 @@
-const CACHE_NAME = "tun-personality-v6-1-10-20260724";
+const CACHE_NAME = "tun-personality-v6-1-11-20260725";
 const CORE_ASSETS = [
   "./",
   "./index.html",

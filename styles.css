@@ -875,10 +875,19 @@ main,
 #result .result-tags-panel .section-title,
 #result .result-analysis .section-title,
 #result .result-analysis .stats-title{
-  margin:0 0 9px !important;
+  margin:0 0 7px !important;
   font-size:20px !important;
   line-height:1.2 !important;
   text-align:left !important;
+}
+
+
+#result .result-tags-panel .section-title{
+  margin-bottom:0 !important;
+}
+
+#result .result-tags-panel .tags{
+  margin-top:0 !important;
 }
 
 #result .result-tags-panel .tags{
@@ -901,7 +910,7 @@ main,
 #result #skill{
   margin:0 !important;
   font-size:15px !important;
-  line-height:1.72 !important;
+  line-height:1.55 !important;
   color:#17375e !important;
   overflow-wrap:anywhere;
 }

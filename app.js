@@ -290,6 +290,10 @@ function calculate() {
   renderResult(current, currentStats, true);
 }
 
+function stripEndingPunctuation(text = '') {
+  return String(text).replace(/[。．.!！?？]+\s*$/u, '').trim();
+}
+
 function renderResult(result, stats, updateUrl = false) {
   const theme = resultThemes[result.key] || ['✨', '#4f8edc', '#f2f8ff', '#b9d4f3'];
   const resultElement = document.getElementById('result');
@@ -308,8 +312,8 @@ function renderResult(result, stats, updateUrl = false) {
     image.src = resultImages[result.key] || IMG;
     image.alt = result.name;
   }
-  if (description) description.textContent = result.desc;
-  if (skill) skill.textContent = result.skill;
+  if (description) description.textContent = stripEndingPunctuation(result.desc);
+  if (skill) skill.textContent = stripEndingPunctuation(result.skill);
 
   const tags = document.getElementById('tags');
   if (tags) {
@@ -559,17 +563,18 @@ async function buildResultCanvas() {
   const measurePanel = (text) => {
     measureCtx.font = `400 29px ${chineseFont}`;
     const lines = measureCanvasLines(measureCtx, text, contentWidth);
-    const lineHeight = 40;
+    const lineHeight = 42;
     return {
       lines,
-      height: 68 + lines.length * lineHeight + 22
+      lineHeight,
+      height: 60 + lines.length * lineHeight
     };
   };
 
-  const descPanel = measurePanel(current.desc);
-  const skillPanel = measurePanel(current.skill);
-  const tagsHeight = 72 + tagRows.length * 52 + 16;
-  const statsHeight = 262;
+  const descPanel = measurePanel(stripEndingPunctuation(current.desc));
+  const skillPanel = measurePanel(stripEndingPunctuation(current.skill));
+  const tagsHeight = 60 + tagRows.length * 48 + 12;
+  const statsHeight = 244;
   const panelsStartY = 760;
   const contentBottom = panelsStartY + tagsHeight + panelGap + descPanel.height + panelGap + skillPanel.height + panelGap + statsHeight;
   const canvasHeight = Math.max(1480, Math.ceil(contentBottom + 64));
@@ -599,7 +604,7 @@ async function buildResultCanvas() {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // 品牌 Logo：沿用原本 TUN 大學網比例，TUN 稍大、中文字較小且緊鄰排列。
+  // 品牌 Logo：TUN 與「大學網」採相同視覺高度、斜體與緊密比例。
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   const logoX = 92;
@@ -608,9 +613,9 @@ async function buildResultCanvas() {
   ctx.fillStyle = '#11a7bf';
   ctx.fillText('TUN', logoX, logoY);
   const tunWidth = ctx.measureText('TUN').width;
-  ctx.font = `900 25px ${chineseFont}`;
+  ctx.font = `italic 900 32px ${chineseFont}`;
   ctx.fillStyle = '#173b67';
-  ctx.fillText('大學網', logoX + tunWidth + 4, logoY - 1);
+  ctx.fillText('大學網', logoX + tunWidth + 1, logoY - 1);
 
   const pillX = 790;
   const pillY = 61;
@@ -663,7 +668,7 @@ async function buildResultCanvas() {
 
     ctx.fillStyle = '#183b64';
     ctx.font = `400 29px ${chineseFont}`;
-    panel.lines.forEach((line, index) => ctx.fillText(line, contentX, y + 87 + index * 40));
+    panel.lines.forEach((line, index) => ctx.fillText(line, contentX, y + 82 + index * panel.lineHeight));
     y += panel.height + panelGap;
   };
 
@@ -673,7 +678,7 @@ async function buildResultCanvas() {
   ctx.font = `900 34px ${chineseFont}`;
   ctx.fillText('代表標籤', contentX, y + 46);
 
-  let tagY = y + 77;
+  let tagY = y + 56;
   tagRows.forEach((row) => {
     let tagX = contentX;
     row.forEach((item) => {
@@ -688,7 +693,7 @@ async function buildResultCanvas() {
       ctx.fillText(item.tag, tagX + 20, tagY + 29);
       tagX += item.width + 14;
     });
-    tagY += 52;
+    tagY += 48;
   });
   y += tagsHeight + panelGap;
 
@@ -702,7 +707,7 @@ async function buildResultCanvas() {
   ctx.fillText('能力值分析', contentX, y + 46);
 
   dims.forEach((dimension, index) => {
-    const lineY = y + 86 + index * 36;
+    const lineY = y + 82 + index * 34;
     const value = currentStats[dimension] ?? 50;
     const statColor = statColors[dimension] || accent;
 
