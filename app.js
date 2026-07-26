@@ -330,16 +330,32 @@ function renderStats(stats) {
   if (!container) return;
 
   container.replaceChildren(...dims.map(dimension => {
-    const value = stats[dimension] ?? 50;
+    const value = Math.max(0, Math.min(100, Number(stats[dimension] ?? 50)));
     const row = document.createElement('div');
     row.className = 'stat';
-    row.innerHTML = `
-      <span class="stat-label stat-${dimension}">${labels[dimension]}</span>
-      <span class="stat-track">
-        <span class="stat-fill stat-fill-${dimension}" style="width:${value}%"></span>
-      </span>
-      <span class="stat-value stat-${dimension}">${value}%</span>
-    `;
+
+    const label = document.createElement('span');
+    label.className = `stat-label stat-${dimension}`;
+    label.textContent = labels[dimension];
+
+    const track = document.createElement('span');
+    track.className = 'stat-track';
+    track.setAttribute('role', 'progressbar');
+    track.setAttribute('aria-label', labels[dimension]);
+    track.setAttribute('aria-valuemin', '0');
+    track.setAttribute('aria-valuemax', '100');
+    track.setAttribute('aria-valuenow', String(value));
+
+    const fill = document.createElement('span');
+    fill.className = `stat-fill stat-fill-${dimension}`;
+    fill.style.width = `${value}%`;
+    track.appendChild(fill);
+
+    const percentage = document.createElement('span');
+    percentage.className = `stat-value stat-${dimension}`;
+    percentage.textContent = `${value}%`;
+
+    row.append(label, track, percentage);
     return row;
   }));
 }
@@ -615,7 +631,7 @@ async function buildResultCanvas() {
   ctx.textAlign = 'center';
   ctx.font = `900 20px ${chineseFont}`;
   ctx.fillStyle = accent;
-  ctx.fillText(`${theme[0]} 大一命定人格`, pillX + pillW / 2, pillY + 34);
+  ctx.fillText('✨ 大一命定人格', pillX + pillW / 2, pillY + 34);
 
   // 放大人格標題，並縮短標題與角色插圖的距離。
   ctx.textAlign = 'center';

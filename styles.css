@@ -60,7 +60,7 @@ h1{font-size:clamp(28px,8vw,39px);line-height:1.15;letter-spacing:-1.4px;margin-
 .stats{display:grid;gap:9px}
 .stat{display:grid;grid-template-columns:74px 1fr 31px;gap:7px;align-items:center;font-size:11px;font-weight:900}
 .stat-track{height:9px;background:#eef2f6;border-radius:999px;overflow:hidden}
-.stat-fill{height:100%;background:linear-gradient(90deg,#5a7de0,#6cc5d4);border-radius:999px}
+.stat-fill{display:block;height:100%;width:0;background:linear-gradient(90deg,#5a7de0,#6cc5d4);border-radius:999px}
 .actions{display:grid;gap:8px;margin-top:12px}
 .note{text-align:center;font-size:10px;color:#7e8d98;margin:10px 0 0}
 .toast{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;background:#173c67;color:#fff;padding:10px 14px;border-radius:999px;font-size:12px;font-weight:850;transition:.22s;z-index:10;max-width:calc(100% - 30px)}
