@@ -527,10 +527,12 @@ async function buildResultCanvas() {
 
   const descLines = measureLines(descText);
   const skillLines = measureLines(skillText);
-  const sharedTextHeight = Math.max(
-    132,
-    68 + Math.max(descLines.length, skillLines.length) * 38 + 18
-  );
+  const textTitleHeight = 52;
+  const textLineHeight = 38;
+  const textBottomPadding = 22;
+  const getTextPanelHeight = (lines) => Math.max(112, textTitleHeight + lines.length * textLineHeight + textBottomPadding);
+  const descHeight = getTextPanelHeight(descLines);
+  const skillHeight = getTextPanelHeight(skillLines);
 
   // 代表標籤固定 2 × 2，避免不同字數造成排列鬆散。
   const tagColumns = 2;
@@ -543,8 +545,8 @@ async function buildResultCanvas() {
   const panelsStartY = 596;
   const contentBottom = panelsStartY
     + tagsHeight + panelGap
-    + sharedTextHeight + panelGap
-    + sharedTextHeight + panelGap
+    + descHeight + panelGap
+    + skillHeight + panelGap
     + statsHeight;
   const canvasHeight = Math.ceil(contentBottom + 38);
 
@@ -640,15 +642,15 @@ async function buildResultCanvas() {
     ctx.fillText(title, contentX, y + 40);
   };
 
-  const drawTextPanel = (title, lines) => {
-    drawCardBase(sharedTextHeight);
+  const drawTextPanel = (title, lines, height) => {
+    drawCardBase(height);
     drawSectionTitle(title);
     ctx.fillStyle = '#183b64';
     ctx.font = `400 28px ${chineseFont}`;
     lines.forEach((line, index) => {
-      ctx.fillText(line, contentX, y + 78 + index * 38);
+      ctx.fillText(line, contentX, y + 78 + index * textLineHeight);
     });
-    y += sharedTextHeight + panelGap;
+    y += height + panelGap;
   };
 
   // 代表標籤：固定 2 × 2、統一高度、圓角、框線與留白。
@@ -675,9 +677,9 @@ async function buildResultCanvas() {
   });
   y += tagsHeight + panelGap;
 
-  // 兩張文字卡使用完全相同的高度、字級、行高與 Padding。
-  drawTextPanel('人格說明', descLines);
-  drawTextPanel('開學小提醒', skillLines);
+  // 文字卡依各自內容行數自動調整高度，並維持一致字級、行高與 Padding。
+  drawTextPanel('人格說明', descLines, descHeight);
+  drawTextPanel('開學小提醒', skillLines, skillHeight);
 
   // 能力值：固定三欄對齊，並統一使用該人格主題色。
   drawCardBase(statsHeight);
@@ -765,7 +767,7 @@ async function downloadResultCard() {
     trackEvent('result_download', {
       personality_key: current.key,
       personality_name: current.name,
-      layout: 'v6.1.11_compact_download_card'
+      layout: 'v6.2.3_auto_height_text_cards'
     });
   } catch (error) {
     trackEvent('result_download_error', { message: String(error?.message || 'unknown') });
