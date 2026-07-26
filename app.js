@@ -73,6 +73,18 @@ let toastTimer = null;
 
 const screenIds = ['welcome', 'selection', 'loading', 'result'];
 
+const byId = id => document.getElementById(id);
+const query = selector => document.querySelector(selector);
+
+function setText(id, value) {
+  const element = byId(id);
+  if (element) element.textContent = String(value ?? '');
+}
+
+function getResultTheme(key) {
+  return resultThemes[key] || ['✨', '#4f8edc', '#f2f8ff', '#b9d4f3'];
+}
+
 function trackEvent(name, params = {}) {
   if (typeof window.trackTunEvent === 'function') {
     window.trackTunEvent(name, params);
@@ -81,14 +93,13 @@ function trackEvent(name, params = {}) {
 
 function show(screenId) {
   screenIds.forEach(id => {
-    const element = document.getElementById(id);
-    if (element) element.classList.toggle('hidden', id !== screenId);
+    byId(id)?.classList.toggle('hidden', id !== screenId);
   });
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function startLoadingMascots() {
-  const mascot = document.getElementById('loadingMascot');
+  const mascot = byId('loadingMascot');
   if (!mascot) return;
 
   let index = 0;
@@ -130,7 +141,7 @@ function startQuiz() {
 }
 
 function render() {
-  const grid = document.getElementById('grid');
+  const grid = byId('grid');
   if (!grid) return;
 
   grid.innerHTML = '';
@@ -175,10 +186,10 @@ function toggle(id) {
 
 function update() {
   const count = selected.length;
-  const counter = document.getElementById('counterNum');
-  const bar = document.getElementById('bar');
-  const percentage = document.getElementById('progressPct');
-  const submit = document.getElementById('submit');
+  const counter = byId('counterNum');
+  const bar = byId('bar');
+  const percentage = byId('progressPct');
+  const submit = byId('submit');
 
   if (counter) counter.textContent = String(count);
   if (bar) bar.style.width = `${count / 4 * 100}%`;
@@ -294,55 +305,59 @@ function stripEndingPunctuation(text) {
   return String(text || '').replace(/[。．.!！?？]+$/u, '').trim();
 }
 
-function renderResult(result, stats, updateUrl = false) {
-  const theme = resultThemes[result.key] || ['✨', '#4f8edc', '#f2f8ff', '#b9d4f3'];
-  const resultElement = document.getElementById('result');
-
+function applyResultTheme(result) {
+  const theme = getResultTheme(result.key);
+  const resultElement = byId('result');
   resultElement?.style.setProperty('--result-accent', theme[1]);
   resultElement?.style.setProperty('--result-soft', theme[2]);
   resultElement?.style.setProperty('--result-line', theme[3]);
+  return theme;
+}
 
-  const title = document.getElementById('title');
-  const image = document.querySelector('#result .result-hero img');
-  const description = document.getElementById('desc');
-  const skill = document.getElementById('skill');
+function renderTags(tags) {
+  const container = byId('tags');
+  if (!container) return;
 
-  if (title) title.textContent = result.name;
+  container.replaceChildren(...tags.map(tag => {
+    const element = document.createElement('span');
+    element.textContent = tag;
+    return element;
+  }));
+}
+
+function renderStats(stats) {
+  const container = byId('stats');
+  if (!container) return;
+
+  container.replaceChildren(...dims.map(dimension => {
+    const value = stats[dimension] ?? 50;
+    const row = document.createElement('div');
+    row.className = 'stat';
+    row.innerHTML = `
+      <span class="stat-label stat-${dimension}">${labels[dimension]}</span>
+      <span class="stat-track">
+        <span class="stat-fill stat-fill-${dimension}" style="width:${value}%"></span>
+      </span>
+      <span class="stat-value stat-${dimension}">${value}%</span>
+    `;
+    return row;
+  }));
+}
+
+function renderResult(result, stats, updateUrl = false) {
+  applyResultTheme(result);
+  setText('title', result.name);
+  setText('desc', stripEndingPunctuation(result.desc));
+  setText('skill', stripEndingPunctuation(result.skill));
+
+  const image = query('#result .result-hero img');
   if (image) {
     image.src = resultImages[result.key] || IMG;
     image.alt = result.name;
   }
-  if (description) description.textContent = stripEndingPunctuation(result.desc);
-  if (skill) skill.textContent = stripEndingPunctuation(result.skill);
 
-  const tags = document.getElementById('tags');
-  if (tags) {
-    tags.innerHTML = '';
-    result.hashtags.forEach(tag => {
-      const element = document.createElement('span');
-      element.textContent = tag;
-      tags.appendChild(element);
-    });
-  }
-
-  const statBox = document.getElementById('stats');
-  if (statBox) {
-    statBox.innerHTML = '';
-
-    dims.forEach(dimension => {
-      const value = stats[dimension] ?? 50;
-      const row = document.createElement('div');
-      row.className = 'stat';
-      row.innerHTML = `
-        <span class="stat-label stat-${dimension}">${labels[dimension]}</span>
-        <span class="stat-track">
-          <span class="stat-fill stat-fill-${dimension}" style="display:block;width:${value}%"></span>
-        </span>
-        <span class="stat-value stat-${dimension}">${value}%</span>
-      `;
-      statBox.appendChild(row);
-    });
-  }
+  renderTags(result.hashtags);
+  renderStats(stats);
 
   if (updateUrl) {
     const url = new URL(window.location.href);
@@ -425,8 +440,8 @@ let generatedResultFilename = '';
 let generatedResultBlob = null;
 
 function showGeneratedResultImage(blob, filename) {
-  const page = document.getElementById('result-image-page');
-  const image = document.getElementById('generated-result-image');
+  const page = byId('result-image-page');
+  const image = byId('generated-result-image');
   if (!page || !image) throw new Error('找不到結果圖片預覽區');
 
   if (generatedResultObjectURL) URL.revokeObjectURL(generatedResultObjectURL);
@@ -440,7 +455,7 @@ function showGeneratedResultImage(blob, filename) {
 }
 
 function closeGeneratedResultImage() {
-  document.getElementById('result-image-page')?.classList.add('hidden');
+  byId('result-image-page')?.classList.add('hidden');
   document.body.style.overflow = '';
 }
 
@@ -497,7 +512,7 @@ async function buildResultCanvas() {
 
   await document.fonts?.ready;
 
-  const theme = resultThemes[current.key] || ['✨', '#4f8edc', '#f2f8ff', '#b9d4f3'];
+  const theme = getResultTheme(current.key);
   const accent = theme[1];
   const pageBg = theme[2];
   const border = theme[3];
@@ -527,10 +542,11 @@ async function buildResultCanvas() {
 
   const descLines = measureLines(descText);
   const skillLines = measureLines(skillText);
-  const textTitleHeight = 52;
+  // 文字卡不設固定高度：標題、內文與上下 Padding 均採固定節奏，卡片高度只由實際行數決定。
+  const textTitleHeight = 50;
   const textLineHeight = 38;
-  const textBottomPadding = 22;
-  const getTextPanelHeight = (lines) => Math.max(112, textTitleHeight + lines.length * textLineHeight + textBottomPadding);
+  const textBottomPadding = 18;
+  const getTextPanelHeight = (lines) => textTitleHeight + Math.max(1, lines.length) * textLineHeight + textBottomPadding;
   const descHeight = getTextPanelHeight(descLines);
   const skillHeight = getTextPanelHeight(skillLines);
 
@@ -727,7 +743,7 @@ function roundRect(context, x, y, width, height, radius) {
 }
 
 async function downloadResultCard() {
-  const button = document.querySelector('#result .download-result');
+  const button = byId('download-result');
   if (!current || !currentStats) {
     toast('找不到人格結果，請重新測驗');
     return;
@@ -823,7 +839,7 @@ function setupDebugMode() {
   const params = new URLSearchParams(window.location.search);
   if (params.get('debug') !== 'true') return;
 
-  const panel = document.getElementById('debugPanel');
+  const panel = byId('debugPanel');
   if (!panel) return;
 
   panel.classList.remove('hidden');
@@ -836,12 +852,12 @@ function setupDebugMode() {
     <button type="button" id="debugClose">關閉</button>
   `;
 
-  document.getElementById('debugShow')?.addEventListener('click', () => {
-    const key = document.getElementById('debugSelect')?.value;
+  byId('debugShow')?.addEventListener('click', () => {
+    const key = byId('debugSelect')?.value;
     if (key) showResultFromUrl(key);
   });
 
-  document.getElementById('debugClose')?.addEventListener('click', () => {
+  byId('debugClose')?.addEventListener('click', () => {
     const url = new URL(window.location.href);
     url.searchParams.delete('debug');
     window.location.href = url.toString();
@@ -849,7 +865,7 @@ function setupDebugMode() {
 }
 
 function toast(message) {
-  const element = document.getElementById('toast');
+  const element = byId('toast');
   if (!element) return;
 
   element.textContent = message;
@@ -861,14 +877,22 @@ function toast(message) {
   }, 2300);
 }
 
-function initializeApp() {
-  document.getElementById('close-result-image')?.addEventListener('click', closeGeneratedResultImage);
-  document.getElementById('save-result-image')?.addEventListener('click', saveGeneratedResultImage);
-  document.getElementById('retry-from-image')?.addEventListener('click', () => {
+function bindEvents() {
+  byId('start-quiz')?.addEventListener('click', startQuiz);
+  byId('submit')?.addEventListener('click', submitSelection);
+  byId('share-result')?.addEventListener('click', shareResult);
+  byId('download-result')?.addEventListener('click', downloadResultCard);
+  byId('retry-result')?.addEventListener('click', resetQuiz);
+  byId('close-result-image')?.addEventListener('click', closeGeneratedResultImage);
+  byId('save-result-image')?.addEventListener('click', saveGeneratedResultImage);
+  byId('retry-from-image')?.addEventListener('click', () => {
     closeGeneratedResultImage();
     resetQuiz();
   });
+}
 
+function initializeApp() {
+  bindEvents();
   render();
   update();
   setupDebugMode();
@@ -888,4 +912,4 @@ function initializeApp() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', initializeApp);
+document.addEventListener('DOMContentLoaded', initializeApp, { once: true });

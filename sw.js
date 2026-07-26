@@ -1,4 +1,4 @@
-const CACHE_NAME = "tun-freshman-v6.2.3";
+const CACHE_NAME = "tun-freshman-v7.0.0";
 const CORE_ASSETS = [
   "./",
   "./index.html",
