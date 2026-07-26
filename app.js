@@ -501,13 +501,7 @@ async function buildResultCanvas() {
   const accent = theme[1];
   const pageBg = theme[2];
   const border = theme[3];
-  const statColors = {
-    study: '#5A78C9',
-    social: '#E36D7D',
-    time: '#B6802C',
-    survival: '#6A9A76',
-    action: '#8A68B8'
-  };
+  const statColors = Object.fromEntries(dims.map(dimension => [dimension, accent]));
 
   const canvasWidth = 1080;
   const panelX = 82;
@@ -534,20 +528,21 @@ async function buildResultCanvas() {
   const descLines = measurePanelLines(descText);
   const skillLines = measurePanelLines(skillText);
   const sharedTextPanelHeight = Math.max(
-    156,
-    78 + Math.max(descLines.length, skillLines.length) * 39 + 24
+    138,
+    68 + Math.max(descLines.length, skillLines.length) * 37 + 18
   );
   const descPanel = { lines: descLines, height: sharedTextPanelHeight };
   const skillPanel = { lines: skillLines, height: sharedTextPanelHeight };
 
   // 四個代表標籤固定為平均四欄，確保高度與間距一致。
-  const tagGap = 14;
-  const tagCount = Math.max(1, current.hashtags.length);
-  const tagWidth = (contentWidth - tagGap * (tagCount - 1)) / tagCount;
-  const tagHeight = 48;
-  const tagsHeight = 130;
+  const tagGap = 12;
+  const tagColumns = 2;
+  const tagWidth = (contentWidth - tagGap) / tagColumns;
+  const tagHeight = 46;
+  const tagRowGap = 10;
+  const tagsHeight = 176;
   const statsHeight = 224;
-  const panelsStartY = 624;
+  const panelsStartY = 602;
   const contentBottom = panelsStartY + tagsHeight + panelGap + descPanel.height + panelGap + skillPanel.height + panelGap + statsHeight;
   const canvasHeight = Math.ceil(contentBottom + 38);
 
@@ -611,7 +606,7 @@ async function buildResultCanvas() {
   // 放大角色插圖，並縮短標題、插圖與資訊區塊之間的距離。
   try {
     const image = await loadImage(resultImages[current.key] || IMG);
-    const box = { x: 105, y: 205, width: 870, height: 405 };
+    const box = { x: 82, y: 195, width: 916, height: 395 };
     const ratio = Math.min(box.width / image.width, box.height / image.height);
     const width = image.width * ratio;
     const height = image.height * ratio;
@@ -636,11 +631,11 @@ async function buildResultCanvas() {
     ctx.textAlign = 'left';
     ctx.fillStyle = accent;
     ctx.font = `900 34px ${chineseFont}`;
-    ctx.fillText(title, contentX, y + 43);
+    ctx.fillText(title, contentX, y + 40);
 
     ctx.fillStyle = '#183b64';
     ctx.font = `400 29px ${chineseFont}`;
-    panel.lines.forEach((line, index) => ctx.fillText(line, contentX, y + 84 + index * 39));
+    panel.lines.forEach((line, index) => ctx.fillText(line, contentX, y + 76 + index * 37));
     y += panel.height + panelGap;
   };
 
@@ -651,19 +646,22 @@ async function buildResultCanvas() {
   ctx.font = `900 34px ${chineseFont}`;
   ctx.fillText('代表標籤', contentX, y + 43);
 
-  const tagY = y + 66;
+  const tagY = y + 65;
   current.hashtags.forEach((tag, index) => {
-    const tagX = contentX + index * (tagWidth + tagGap);
+    const column = index % tagColumns;
+    const row = Math.floor(index / tagColumns);
+    const tagX = contentX + column * (tagWidth + tagGap);
+    const currentTagY = tagY + row * (tagHeight + tagRowGap);
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = border;
     ctx.lineWidth = 2;
-    roundRect(ctx, tagX, tagY, tagWidth, tagHeight, 14);
+    roundRect(ctx, tagX, currentTagY, tagWidth, tagHeight, 14);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = accent;
     ctx.textAlign = 'center';
     ctx.font = `800 22px ${chineseFont}`;
-    ctx.fillText(tag, tagX + tagWidth / 2, tagY + 32);
+    ctx.fillText(tag, tagX + tagWidth / 2, currentTagY + 31);
   });
   y += tagsHeight + panelGap;
 
