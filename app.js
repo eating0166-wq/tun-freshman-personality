@@ -501,49 +501,51 @@ async function buildResultCanvas() {
   const accent = theme[1];
   const pageBg = theme[2];
   const border = theme[3];
-  const statColors = Object.fromEntries(dims.map(dimension => [dimension, accent]));
+  const chineseFont = '"Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif';
 
+  // 本函式只負責「下載人格結果卡」，不會改動畫面上的分析結果頁。
   const canvasWidth = 1080;
   const panelX = 82;
   const panelWidth = 916;
   const contentX = 112;
   const contentWidth = 856;
-  const panelGap = 16;
+  const panelGap = 14;
   const panelRadius = 24;
   const panelPaddingX = 30;
-  const chineseFont = '"Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif';
 
-  // 下載卡共用一致的資訊框規格，並依內容計算高度。
   const measureCanvas = document.createElement('canvas');
   const measureCtx = measureCanvas.getContext('2d');
   if (!measureCtx) throw new Error('此瀏覽器不支援圖片產生功能');
 
   const descText = stripEndingPunctuation(current.desc);
   const skillText = stripEndingPunctuation(current.skill);
-  const panelTextWidth = contentWidth - panelPaddingX * 2;
-  const measurePanelLines = (text) => {
-    measureCtx.font = `400 29px ${chineseFont}`;
-    return measureCanvasLines(measureCtx, text, panelTextWidth);
+  const textWidth = contentWidth - panelPaddingX * 2;
+  const measureLines = (text) => {
+    measureCtx.font = `400 28px ${chineseFont}`;
+    return measureCanvasLines(measureCtx, text, textWidth);
   };
-  const descLines = measurePanelLines(descText);
-  const skillLines = measurePanelLines(skillText);
-  const sharedTextPanelHeight = Math.max(
-    138,
-    68 + Math.max(descLines.length, skillLines.length) * 37 + 18
-  );
-  const descPanel = { lines: descLines, height: sharedTextPanelHeight };
-  const skillPanel = { lines: skillLines, height: sharedTextPanelHeight };
 
-  // 四個代表標籤固定為平均四欄，確保高度與間距一致。
-  const tagGap = 12;
+  const descLines = measureLines(descText);
+  const skillLines = measureLines(skillText);
+  const sharedTextHeight = Math.max(
+    132,
+    68 + Math.max(descLines.length, skillLines.length) * 38 + 18
+  );
+
+  // 代表標籤固定 2 × 2，避免不同字數造成排列鬆散。
   const tagColumns = 2;
-  const tagWidth = (contentWidth - tagGap) / tagColumns;
-  const tagHeight = 46;
-  const tagRowGap = 10;
-  const tagsHeight = 176;
-  const statsHeight = 224;
-  const panelsStartY = 602;
-  const contentBottom = panelsStartY + tagsHeight + panelGap + descPanel.height + panelGap + skillPanel.height + panelGap + statsHeight;
+  const tagGapX = 14;
+  const tagGapY = 12;
+  const tagWidth = (contentWidth - tagGapX) / tagColumns;
+  const tagHeight = 50;
+  const tagsHeight = 184;
+  const statsHeight = 242;
+  const panelsStartY = 596;
+  const contentBottom = panelsStartY
+    + tagsHeight + panelGap
+    + sharedTextHeight + panelGap
+    + sharedTextHeight + panelGap
+    + statsHeight;
   const canvasHeight = Math.ceil(contentBottom + 38);
 
   const canvas = document.createElement('canvas');
@@ -574,7 +576,7 @@ async function buildResultCanvas() {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   const logoX = 92;
-  const logoY = 100;
+  const logoY = 96;
   ctx.font = `italic 900 34px ${chineseFont}`;
   ctx.fillStyle = '#11a7bf';
   ctx.fillText('TUN', logoX, logoY);
@@ -583,34 +585,39 @@ async function buildResultCanvas() {
   ctx.fillText('大學網', logoX + tunWidth + 7, logoY);
 
   const pillX = 790;
-  const pillY = 61;
+  const pillY = 57;
   const pillW = 184;
   const pillH = 52;
-  ctx.fillStyle = '#edf7ff';
-  ctx.strokeStyle = '#9fc7eb';
+  ctx.fillStyle = pageBg;
+  ctx.strokeStyle = border;
   ctx.lineWidth = 2;
   roundRect(ctx, pillX, pillY, pillW, pillH, 26);
   ctx.fill();
   ctx.stroke();
   ctx.textAlign = 'center';
   ctx.font = `900 20px ${chineseFont}`;
-  ctx.fillStyle = '#173c70';
-  ctx.fillText('✨ 大一命定人格', pillX + pillW / 2, pillY + 34);
+  ctx.fillStyle = accent;
+  ctx.fillText(`${theme[0]} 大一命定人格`, pillX + pillW / 2, pillY + 34);
 
-  // 放大人格標題並維持置中。
+  // 放大人格標題，並縮短標題與角色插圖的距離。
   ctx.textAlign = 'center';
   ctx.font = `900 78px ${chineseFont}`;
   ctx.fillStyle = accent;
-  ctx.fillText(current.name, 540, 202);
+  ctx.fillText(current.name, 540, 192);
 
-  // 放大角色插圖，並縮短標題、插圖與資訊區塊之間的距離。
   try {
     const image = await loadImage(resultImages[current.key] || IMG);
-    const box = { x: 82, y: 195, width: 916, height: 395 };
+    const box = { x: 88, y: 186, width: 904, height: 398 };
     const ratio = Math.min(box.width / image.width, box.height / image.height);
     const width = image.width * ratio;
     const height = image.height * ratio;
-    ctx.drawImage(image, box.x + (box.width - width) / 2, box.y + (box.height - height) / 2, width, height);
+    ctx.drawImage(
+      image,
+      box.x + (box.width - width) / 2,
+      box.y + (box.height - height) / 2,
+      width,
+      height
+    );
   } catch (error) {
     trackEvent('result_image_load_error', { message: String(error?.message || 'unknown') });
   }
@@ -626,75 +633,75 @@ async function buildResultCanvas() {
     ctx.stroke();
   };
 
-  const drawPanel = (title, panel) => {
-    drawCardBase(panel.height);
+  const drawSectionTitle = (title) => {
     ctx.textAlign = 'left';
     ctx.fillStyle = accent;
-    ctx.font = `900 34px ${chineseFont}`;
+    ctx.font = `900 32px ${chineseFont}`;
     ctx.fillText(title, contentX, y + 40);
-
-    ctx.fillStyle = '#183b64';
-    ctx.font = `400 29px ${chineseFont}`;
-    panel.lines.forEach((line, index) => ctx.fillText(line, contentX, y + 76 + index * 37));
-    y += panel.height + panelGap;
   };
 
-  // 代表標籤：平均排列、固定高度與一致間距。
-  drawCardBase(tagsHeight);
-  ctx.textAlign = 'left';
-  ctx.fillStyle = accent;
-  ctx.font = `900 34px ${chineseFont}`;
-  ctx.fillText('代表標籤', contentX, y + 43);
+  const drawTextPanel = (title, lines) => {
+    drawCardBase(sharedTextHeight);
+    drawSectionTitle(title);
+    ctx.fillStyle = '#183b64';
+    ctx.font = `400 28px ${chineseFont}`;
+    lines.forEach((line, index) => {
+      ctx.fillText(line, contentX, y + 78 + index * 38);
+    });
+    y += sharedTextHeight + panelGap;
+  };
 
-  const tagY = y + 65;
-  current.hashtags.forEach((tag, index) => {
+  // 代表標籤：固定 2 × 2、統一高度、圓角、框線與留白。
+  drawCardBase(tagsHeight);
+  drawSectionTitle('代表標籤');
+  const tagStartY = y + 61;
+  current.hashtags.slice(0, 4).forEach((tag, index) => {
     const column = index % tagColumns;
     const row = Math.floor(index / tagColumns);
-    const tagX = contentX + column * (tagWidth + tagGap);
-    const currentTagY = tagY + row * (tagHeight + tagRowGap);
-    ctx.fillStyle = '#ffffff';
+    const tagX = contentX + column * (tagWidth + tagGapX);
+    const tagY = tagStartY + row * (tagHeight + tagGapY);
+
+    ctx.fillStyle = pageBg;
     ctx.strokeStyle = border;
     ctx.lineWidth = 2;
-    roundRect(ctx, tagX, currentTagY, tagWidth, tagHeight, 14);
+    roundRect(ctx, tagX, tagY, tagWidth, tagHeight, 15);
     ctx.fill();
     ctx.stroke();
+
     ctx.fillStyle = accent;
     ctx.textAlign = 'center';
-    ctx.font = `800 22px ${chineseFont}`;
-    ctx.fillText(tag, tagX + tagWidth / 2, currentTagY + 31);
+    ctx.font = `800 23px ${chineseFont}`;
+    ctx.fillText(tag, tagX + tagWidth / 2, tagY + 33);
   });
   y += tagsHeight + panelGap;
 
-  drawPanel('人格說明', descPanel);
-  drawPanel('開學小提醒', skillPanel);
+  // 兩張文字卡使用完全相同的高度、字級、行高與 Padding。
+  drawTextPanel('人格說明', descLines);
+  drawTextPanel('開學小提醒', skillLines);
 
-  // 能力值：名稱、長條與百分比維持固定欄位及水平對齊。
+  // 能力值：固定三欄對齊，並統一使用該人格主題色。
   drawCardBase(statsHeight);
-  ctx.textAlign = 'left';
-  ctx.fillStyle = accent;
-  ctx.font = `900 34px ${chineseFont}`;
-  ctx.fillText('能力值分析', contentX, y + 43);
+  drawSectionTitle('能力值分析');
 
   const labelX = contentX;
   const barX = contentX + 170;
   const barWidth = 565;
   const percentX = contentX + 835;
   dims.forEach((dimension, index) => {
-    const lineY = y + 79 + index * 31;
+    const lineY = y + 76 + index * 31;
     const value = currentStats[dimension] ?? 50;
-    const statColor = statColors[dimension] || accent;
 
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = statColor;
+    ctx.fillStyle = accent;
     ctx.font = `800 23px ${chineseFont}`;
     ctx.textAlign = 'left';
     ctx.fillText(labels[dimension], labelX, lineY);
 
-    ctx.fillStyle = '#e7eef4';
+    ctx.fillStyle = border;
     roundRect(ctx, barX, lineY - 10, barWidth, 20, 10);
     ctx.fill();
 
-    ctx.fillStyle = statColor;
+    ctx.fillStyle = accent;
     roundRect(ctx, barX, lineY - 10, barWidth * value / 100, 20, 10);
     ctx.fill();
 
@@ -705,7 +712,6 @@ async function buildResultCanvas() {
 
   return canvas;
 }
-
 
 function roundRect(context, x, y, width, height, radius) {
   const safeRadius = Math.min(radius, width / 2, height / 2);
