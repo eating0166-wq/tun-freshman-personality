@@ -290,8 +290,8 @@ function calculate() {
   renderResult(current, currentStats, true);
 }
 
-function stripEndingPunctuation(text = '') {
-  return String(text).replace(/[。．.!！?？]+\s*$/u, '').trim();
+function stripEndingPunctuation(text) {
+  return String(text || '').replace(/[。．.!！?？]+$/u, '').trim();
 }
 
 function renderResult(result, stats, updateUrl = false) {
@@ -420,28 +420,6 @@ function loadImage(source) {
   });
 }
 
-function wrapCanvasText(context, text, x, y, maxWidth, lineHeight, maxLines = 4) {
-  const characters = Array.from(text);
-  const lines = [];
-  let line = '';
-
-  characters.forEach(character => {
-    const test = line + character;
-    if (context.measureText(test).width > maxWidth && line) {
-      lines.push(line);
-      line = character;
-    } else {
-      line = test;
-    }
-  });
-
-  if (line) lines.push(line);
-
-  lines.slice(0, maxLines).forEach((content, index) => {
-    context.fillText(content, x, y + index * lineHeight);
-  });
-}
-
 let generatedResultObjectURL = '';
 let generatedResultFilename = '';
 let generatedResultBlob = null;
@@ -536,48 +514,42 @@ async function buildResultCanvas() {
   const panelWidth = 916;
   const contentX = 112;
   const contentWidth = 856;
-  const panelGap = 14;
+  const panelGap = 16;
+  const panelRadius = 24;
+  const panelPaddingX = 30;
   const chineseFont = '"Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif';
 
-  // 先用測量畫布計算所有區塊高度，避免固定高度造成底部大面積留白。
+  // 下載卡共用一致的資訊框規格，並依內容計算高度。
   const measureCanvas = document.createElement('canvas');
   const measureCtx = measureCanvas.getContext('2d');
   if (!measureCtx) throw new Error('此瀏覽器不支援圖片產生功能');
 
-  measureCtx.font = `800 25px ${chineseFont}`;
-  const tagRows = [];
-  let tagRow = [];
-  let tagRowWidth = 0;
-  for (const tag of current.hashtags) {
-    const width = measureCtx.measureText(tag).width + 42;
-    if (tagRow.length && tagRowWidth + 14 + width > contentWidth) {
-      tagRows.push(tagRow);
-      tagRow = [];
-      tagRowWidth = 0;
-    }
-    tagRow.push({ tag, width });
-    tagRowWidth += width + (tagRow.length > 1 ? 14 : 0);
-  }
-  if (tagRow.length) tagRows.push(tagRow);
-
-  const measurePanel = (text) => {
+  const descText = stripEndingPunctuation(current.desc);
+  const skillText = stripEndingPunctuation(current.skill);
+  const panelTextWidth = contentWidth - panelPaddingX * 2;
+  const measurePanelLines = (text) => {
     measureCtx.font = `400 29px ${chineseFont}`;
-    const lines = measureCanvasLines(measureCtx, text, contentWidth);
-    const lineHeight = 42;
-    return {
-      lines,
-      lineHeight,
-      height: 60 + lines.length * lineHeight
-    };
+    return measureCanvasLines(measureCtx, text, panelTextWidth);
   };
+  const descLines = measurePanelLines(descText);
+  const skillLines = measurePanelLines(skillText);
+  const sharedTextPanelHeight = Math.max(
+    156,
+    78 + Math.max(descLines.length, skillLines.length) * 39 + 24
+  );
+  const descPanel = { lines: descLines, height: sharedTextPanelHeight };
+  const skillPanel = { lines: skillLines, height: sharedTextPanelHeight };
 
-  const descPanel = measurePanel(stripEndingPunctuation(current.desc));
-  const skillPanel = measurePanel(stripEndingPunctuation(current.skill));
-  const tagsHeight = 60 + tagRows.length * 48 + 12;
-  const statsHeight = 244;
-  const panelsStartY = 760;
+  // 四個代表標籤固定為平均四欄，確保高度與間距一致。
+  const tagGap = 14;
+  const tagCount = Math.max(1, current.hashtags.length);
+  const tagWidth = (contentWidth - tagGap * (tagCount - 1)) / tagCount;
+  const tagHeight = 48;
+  const tagsHeight = 130;
+  const statsHeight = 224;
+  const panelsStartY = 624;
   const contentBottom = panelsStartY + tagsHeight + panelGap + descPanel.height + panelGap + skillPanel.height + panelGap + statsHeight;
-  const canvasHeight = Math.max(1480, Math.ceil(contentBottom + 64));
+  const canvasHeight = Math.ceil(contentBottom + 38);
 
   const canvas = document.createElement('canvas');
   canvas.width = canvasWidth;
@@ -588,7 +560,6 @@ async function buildResultCanvas() {
   ctx.fillStyle = pageBg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // 外框高度依內容自動收合，確保能力值分析下方不再留出過多空白。
   const outerY = 18;
   const outerHeight = canvasHeight - 36;
   ctx.fillStyle = '#ffffff';
@@ -604,18 +575,17 @@ async function buildResultCanvas() {
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // 品牌 Logo：TUN 與「大學網」採相同視覺高度、斜體與緊密比例。
+  // 品牌 Logo。
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   const logoX = 92;
-  const logoY = 106;
-  ctx.font = 'italic 900 39px "Arial Black", Arial, sans-serif';
+  const logoY = 100;
+  ctx.font = `italic 900 34px ${chineseFont}`;
   ctx.fillStyle = '#11a7bf';
   ctx.fillText('TUN', logoX, logoY);
   const tunWidth = ctx.measureText('TUN').width;
-  ctx.font = `italic 900 32px ${chineseFont}`;
   ctx.fillStyle = '#173b67';
-  ctx.fillText('大學網', logoX + tunWidth + 1, logoY - 1);
+  ctx.fillText('大學網', logoX + tunWidth + 7, logoY);
 
   const pillX = 790;
   const pillY = 61;
@@ -632,20 +602,22 @@ async function buildResultCanvas() {
   ctx.fillStyle = '#173c70';
   ctx.fillText('✨ 大一命定人格', pillX + pillW / 2, pillY + 34);
 
+  // 放大人格標題並維持置中。
   ctx.textAlign = 'center';
-  ctx.font = `900 68px ${chineseFont}`;
+  ctx.font = `900 78px ${chineseFont}`;
   ctx.fillStyle = accent;
-  ctx.fillText(current.name, 540, 222);
+  ctx.fillText(current.name, 540, 202);
 
+  // 放大角色插圖，並縮短標題、插圖與資訊區塊之間的距離。
   try {
     const image = await loadImage(resultImages[current.key] || IMG);
-    const box = { x: 128, y: 245, width: 824, height: 500 };
+    const box = { x: 105, y: 205, width: 870, height: 405 };
     const ratio = Math.min(box.width / image.width, box.height / image.height);
     const width = image.width * ratio;
     const height = image.height * ratio;
     ctx.drawImage(image, box.x + (box.width - width) / 2, box.y + (box.height - height) / 2, width, height);
   } catch (error) {
-    console.warn('結果圖片載入失敗', error);
+    trackEvent('result_image_load_error', { message: String(error?.message || 'unknown') });
   }
 
   let y = panelsStartY;
@@ -654,7 +626,7 @@ async function buildResultCanvas() {
     ctx.fillStyle = 'rgba(255,255,255,.98)';
     ctx.strokeStyle = border;
     ctx.lineWidth = 2.5;
-    roundRect(ctx, panelX, y, panelWidth, height, 24);
+    roundRect(ctx, panelX, y, panelWidth, height, panelRadius);
     ctx.fill();
     ctx.stroke();
   };
@@ -664,70 +636,74 @@ async function buildResultCanvas() {
     ctx.textAlign = 'left';
     ctx.fillStyle = accent;
     ctx.font = `900 34px ${chineseFont}`;
-    ctx.fillText(title, contentX, y + 46);
+    ctx.fillText(title, contentX, y + 43);
 
     ctx.fillStyle = '#183b64';
     ctx.font = `400 29px ${chineseFont}`;
-    panel.lines.forEach((line, index) => ctx.fillText(line, contentX, y + 82 + index * panel.lineHeight));
+    panel.lines.forEach((line, index) => ctx.fillText(line, contentX, y + 84 + index * 39));
     y += panel.height + panelGap;
   };
 
+  // 代表標籤：平均排列、固定高度與一致間距。
   drawCardBase(tagsHeight);
   ctx.textAlign = 'left';
   ctx.fillStyle = accent;
   ctx.font = `900 34px ${chineseFont}`;
-  ctx.fillText('代表標籤', contentX, y + 46);
+  ctx.fillText('代表標籤', contentX, y + 43);
 
-  let tagY = y + 56;
-  tagRows.forEach((row) => {
-    let tagX = contentX;
-    row.forEach((item) => {
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = border;
-      ctx.lineWidth = 2;
-      roundRect(ctx, tagX, tagY, item.width, 42, 14);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = accent;
-      ctx.font = `800 25px ${chineseFont}`;
-      ctx.fillText(item.tag, tagX + 20, tagY + 29);
-      tagX += item.width + 14;
-    });
-    tagY += 48;
+  const tagY = y + 66;
+  current.hashtags.forEach((tag, index) => {
+    const tagX = contentX + index * (tagWidth + tagGap);
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = border;
+    ctx.lineWidth = 2;
+    roundRect(ctx, tagX, tagY, tagWidth, tagHeight, 14);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = accent;
+    ctx.textAlign = 'center';
+    ctx.font = `800 22px ${chineseFont}`;
+    ctx.fillText(tag, tagX + tagWidth / 2, tagY + 32);
   });
   y += tagsHeight + panelGap;
 
   drawPanel('人格說明', descPanel);
   drawPanel('開學小提醒', skillPanel);
 
+  // 能力值：名稱、長條與百分比維持固定欄位及水平對齊。
   drawCardBase(statsHeight);
   ctx.textAlign = 'left';
   ctx.fillStyle = accent;
   ctx.font = `900 34px ${chineseFont}`;
-  ctx.fillText('能力值分析', contentX, y + 46);
+  ctx.fillText('能力值分析', contentX, y + 43);
 
+  const labelX = contentX;
+  const barX = contentX + 170;
+  const barWidth = 565;
+  const percentX = contentX + 835;
   dims.forEach((dimension, index) => {
-    const lineY = y + 82 + index * 34;
+    const lineY = y + 79 + index * 31;
     const value = currentStats[dimension] ?? 50;
     const statColor = statColors[dimension] || accent;
 
+    ctx.textBaseline = 'middle';
     ctx.fillStyle = statColor;
     ctx.font = `800 23px ${chineseFont}`;
-    ctx.fillText(labels[dimension], contentX, lineY);
+    ctx.textAlign = 'left';
+    ctx.fillText(labels[dimension], labelX, lineY);
 
     ctx.fillStyle = '#e7eef4';
-    roundRect(ctx, contentX + 170, lineY - 17, 565, 20, 10);
+    roundRect(ctx, barX, lineY - 10, barWidth, 20, 10);
     ctx.fill();
 
     ctx.fillStyle = statColor;
-    roundRect(ctx, contentX + 170, lineY - 17, 565 * value / 100, 20, 10);
+    roundRect(ctx, barX, lineY - 10, barWidth * value / 100, 20, 10);
     ctx.fill();
 
     ctx.textAlign = 'right';
-    ctx.font = `800 23px ${chineseFont}`;
-    ctx.fillText(`${value}%`, contentX + 835, lineY);
-    ctx.textAlign = 'left';
+    ctx.fillText(`${value}%`, percentX, lineY);
   });
+  ctx.textBaseline = 'alphabetic';
 
   return canvas;
 }
@@ -785,10 +761,10 @@ async function downloadResultCard() {
     trackEvent('result_download', {
       personality_key: current.key,
       personality_name: current.name,
-      layout: 'v618_result_structure_sync_v619'
+      layout: 'v6.1.11_compact_download_card'
     });
   } catch (error) {
-    console.error('downloadResultCard failed:', error);
+    trackEvent('result_download_error', { message: String(error?.message || 'unknown') });
     toast(`結果卡產生失敗：${error?.message || '請重新整理後再試'}`);
   } finally {
     if (button) {
@@ -797,15 +773,6 @@ async function downloadResultCard() {
     }
   }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('close-result-image')?.addEventListener('click', closeGeneratedResultImage);
-  document.getElementById('save-result-image')?.addEventListener('click', saveGeneratedResultImage);
-  document.getElementById('retry-from-image')?.addEventListener('click', () => {
-    closeGeneratedResultImage();
-    resetQuiz();
-  });
-});
 
 function resetQuiz() {
   if (calculationTimer) {
@@ -889,6 +856,13 @@ function toast(message) {
 }
 
 function initializeApp() {
+  document.getElementById('close-result-image')?.addEventListener('click', closeGeneratedResultImage);
+  document.getElementById('save-result-image')?.addEventListener('click', saveGeneratedResultImage);
+  document.getElementById('retry-from-image')?.addEventListener('click', () => {
+    closeGeneratedResultImage();
+    resetQuiz();
+  });
+
   render();
   update();
   setupDebugMode();
